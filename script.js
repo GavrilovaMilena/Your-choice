@@ -19,31 +19,43 @@ let isDesktopLocked = false;
 
 // ------------------- АНИМАЦИЯ ПУЛЬСАЦИИ -------------------
 function startPulseAndOpenPlanner() {
+    // Получаем координаты кнопки START
     const rect = startBtn.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     
+    // Настраиваем позиционирование пульсирующего слоя
     pulseLayer.style.transformOrigin = `${centerX}px ${centerY}px`;
     pulseLayer.style.opacity = '1';
     pulseLayer.style.transform = 'scale(0)';
     pulseLayer.style.transition = 'none';
+    
+    // Форсируем reflow
     pulseLayer.offsetHeight;
-    pulseLayer.style.transition = 'transform 0.9s cubic-bezier(0.2, 0.9, 0.4, 1.1), opacity 0.8s ease';
-    pulseLayer.style.transform = 'scale(70)';
+    
+    // Запускаем анимацию расширения от кнопки до краев
+    pulseLayer.style.transition = 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease';
+    pulseLayer.style.transform = 'scale(100)'; // Большое значение чтобы покрыть весь экран
     pulseLayer.style.opacity = '1';
     
+    // Плавно скрываем стартовый экран и показываем планер
     setTimeout(() => {
         startScreen.style.opacity = '0';
         startScreen.style.visibility = 'hidden';
         plannerApp.style.display = 'block';
-        pulseLayer.style.opacity = '0';
-        pulseLayer.style.transform = 'scale(0)';
+        
+        // Плавно убираем пульсирующий слой
+        setTimeout(() => {
+            pulseLayer.style.opacity = '0';
+            pulseLayer.style.transform = 'scale(0)';
+        }, 100);
+        
         setTimeout(() => {
             pulseLayer.style.display = 'none';
-        }, 400);
-        // Показываем уведомление после открытия планера
-        showTipsNotification();
-    }, 850);
+            // Показываем уведомление после открытия планера
+            showTipsNotification();
+        }, 500);
+    }, 900);
 }
 
 startBtn.addEventListener('click', startPulseAndOpenPlanner);
@@ -228,7 +240,7 @@ let tempColors = { ...defaultColors };
 function applyColors(colors) {
     plannerApp.style.backgroundColor = colors.bgPage;
     document.querySelectorAll('.planner-app, .planner-app *').forEach(el => {
-        if (!el.classList || (!el.classList.contains('color-input') && el.tagName !== 'INPUT' && el.tagName !== 'BUTTON' && !el.closest('.customize-section') && !el.closest('.modal'))) {
+        if (!el.classList || (!el.classList.contains('color-circle') && el.tagName !== 'INPUT' && el.tagName !== 'BUTTON' && !el.closest('.customize-section') && !el.closest('.modal'))) {
             el.style.color = colors.text;
         }
     });
