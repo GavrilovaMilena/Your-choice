@@ -10,10 +10,8 @@ const StartScreen = ({ onStart }) => {
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         
-        // Сначала запускаем анимацию кнопки (она начнет уменьшаться)
         setIsAnimating(true);
         
-        // Создаем и настраиваем пульсирующий слой
         const pulseLayer = document.createElement('div');
         pulseLayer.className = 'pulse-overlay';
         pulseLayer.style.transformOrigin = `${centerX}px ${centerY}px`;
@@ -30,20 +28,16 @@ const StartScreen = ({ onStart }) => {
         pulseLayer.style.transition = 'transform 1.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease';
         document.body.appendChild(pulseLayer);
         
-        // Небольшая задержка для запуска анимации
         setTimeout(() => {
             pulseLayer.style.transform = 'scale(100)';
             pulseLayer.style.opacity = '1';
         }, 10);
         
-        // Через 300 мс кнопка начинает исчезать
         setTimeout(() => {
             setShouldHide(true);
         }, 300);
         
-        // Через 1.6 секунд (когда анимация почти завершена) переходим к следующему экрану
         setTimeout(() => {
-            // Удаляем пульсирующий слой
             if (pulseLayer && pulseLayer.parentNode) {
                 pulseLayer.style.opacity = '0';
                 setTimeout(() => {
@@ -93,11 +87,12 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
             </div>
             <div className="notification-body">
                 <div className="tip-item">✨ Перетаскивай задачи (если стол разблокирован)</div>
-                <div className="tip-item">🎨 Настрой цвета через модальное окно</div>
+                <div className="tip-item">🎨 Настрой цвета через кнопку 🎨 в планере</div>
                 <div className="tip-item">✅ Отмечай выполненные задачи</div>
                 <div className="tip-item">➕ Добавляй новые дела</div>
                 <div className="tip-item">🔒 Блокируй расположение задач замком</div>
                 <div className="tip-item">📋 Создавай несколько рабочих столов</div>
+                <div className="tip-item">✏️ Дважды кликни по названию стола, чтобы изменить его</div>
             </div>
             <div className="notification-footer">
                 <label className="dont-show-again">
@@ -346,27 +341,50 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock, 
 };
 
 // Компонент выбора рабочего стола
-const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDesktop, onOpenCustomize }) => {
+const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDesktop, onRenameDesktop }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+
+    useEffect(() => {
+        // Показываем подсказку, если пользователь еще не видел
+        const tooltipShown = localStorage.getItem('skyPlanner_renameTooltip');
+        if (!tooltipShown && desktops.length > 0) {
+            setShowTooltip(true);
+            setTimeout(() => {
+                setShowTooltip(false);
+                localStorage.setItem('skyPlanner_renameTooltip', 'true');
+            }, 5000);
+        }
+    }, [desktops]);
+
+    const handleDoubleClick = (desktop, e) => {
+        e.stopPropagation();
+        const newName = prompt('Введите новое название стола:', desktop.name);
+        if (newName && newName.trim()) {
+            onRenameDesktop(desktop.id, newName.trim());
+        }
+    };
+
     return (
         <div className="desktops-screen">
             <div className="desktops-header">
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-                    <button className="control-btn" onClick={onOpenCustomize} title="Настройка цветов">
-                        🎨
-                    </button>
+                <div>
+                    <h1>Your choice</h1>
+                    <p className="subtitle">your choice - your decisions</p>
                 </div>
-                <h1>📋 Мои столы</h1>
-                <p>Выберите рабочий стол или создайте новый</p>
             </div>
             <div className="desktops-grid">
                 <div className="desktop-card add-desktop-card" onClick={onCreateDesktop}>
                     <div className="add-icon">➕</div>
                     <h3>Создать новый стол</h3>
-                    <p>Нажмите чтобы добавить</p>
                 </div>
                 
                 {desktops.map(desktop => (
-                    <div key={desktop.id} className="desktop-card" onClick={() => onSelectDesktop(desktop.id)}>
+                    <div 
+                        key={desktop.id} 
+                        className="desktop-card" 
+                        onClick={() => onSelectDesktop(desktop.id)}
+                        onDoubleClick={(e) => handleDoubleClick(desktop, e)}
+                    >
                         <button 
                             className="desktop-delete"
                             onClick={(e) => {
@@ -383,6 +401,12 @@ const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDe
                             <span>✅ {desktop.tasks?.filter(t => t.completed).length || 0} выполнено</span>
                             <span>📝 {desktop.tasks?.length || 0} всего</span>
                         </div>
+                        {showTooltip && (
+                            <div className="rename-tooltip">
+                                ✏️ Если тыкнуть дважды, можно изменить название стола
+                                <div className="tooltip-arrow">👇</div>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -396,7 +420,7 @@ const App = () => {
     const [desktops, setDesktops] = useState([]);
     const [currentDesktop, setCurrentDesktop] = useState(null);
     const [colors, setColors] = useState({
-        bgPage: '#f0f8ff',
+        bgPage: '#87CEEB', // Изменено на небесно-голубой
         text: '#1e2a3e',
         cardBg: '#ffffff',
         accent: '#87CEEB'
@@ -405,6 +429,7 @@ const App = () => {
     const [showTips, setShowTips] = useState(false);
     const [showCustomize, setShowCustomize] = useState(false);
 
+    // Загрузка данных из localStorage
     useEffect(() => {
         const savedDesktops = localStorage.getItem('skyPlanner_desktops');
         const savedColors = localStorage.getItem('skyPlanner_colors');
@@ -421,6 +446,14 @@ const App = () => {
 
         if (savedColors) {
             setColors(JSON.parse(savedColors));
+        } else {
+            // Устанавливаем небесно-голубой фон по умолчанию
+            setColors({
+                bgPage: '#87CEEB',
+                text: '#1e2a3e',
+                cardBg: '#ffffff',
+                accent: '#87CEEB'
+            });
         }
 
         if (savedLocked) {
@@ -432,11 +465,15 @@ const App = () => {
         }
     }, []);
 
+    // Сохранение данных
     useEffect(() => {
-        if (desktops.length > 0) {
+        if (desktops.length > 0 || (!showStart && desktops.length === 0)) {
             localStorage.setItem('skyPlanner_desktops', JSON.stringify(desktops));
+        } else if (desktops.length === 0 && !showStart) {
+            // Если нет столов, возвращаем на стартовый экран
+            setShowStart(true);
         }
-    }, [desktops]);
+    }, [desktops, showStart]);
 
     useEffect(() => {
         localStorage.setItem('skyPlanner_colors', JSON.stringify(colors));
@@ -456,7 +493,7 @@ const App = () => {
                 { id: 1, text: 'Создать красивый планер ✨', completed: false },
                 { id: 2, text: 'Настроить цвета под настроение', completed: false },
                 { id: 3, text: 'Перемещать задачи', completed: false },
-                { id: 4, text: 'Создать новый рабочий стол', completed: false }
+                { id: 4, text: 'Дважды кликни по названию стола, чтобы изменить его', completed: false }
             ]
         };
         setDesktops([defaultDesktop]);
@@ -488,6 +525,15 @@ const App = () => {
         setDesktops(prev => prev.filter(d => d.id !== id));
         if (currentDesktop?.id === id) {
             setCurrentDesktop(null);
+        }
+    };
+
+    const renameDesktop = (id, newName) => {
+        setDesktops(prev => prev.map(d => 
+            d.id === id ? { ...d, name: newName } : d
+        ));
+        if (currentDesktop?.id === id) {
+            setCurrentDesktop(prev => ({ ...prev, name: newName }));
         }
     };
 
@@ -547,7 +593,7 @@ const App = () => {
                 onCreateDesktop={createNewDesktop}
                 onSelectDesktop={selectDesktop}
                 onDeleteDesktop={deleteDesktop}
-                onOpenCustomize={() => setShowCustomize(true)}
+                onRenameDesktop={renameDesktop}
             />
             {showTips && (
                 <TipsNotification 
