@@ -72,6 +72,155 @@ body {
     display: none;
 }
 
+/* Панель управления */
+.control-panel {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.control-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(135, 206, 235, 0.2);
+    border: 2px solid rgba(135, 206, 235, 0.5);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+
+.control-btn:hover {
+    background: rgba(135, 206, 235, 0.4);
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* Модальное окно кастомизации */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 0;
+    border-radius: 32px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.modal-header h2 {
+    font-size: 1.5rem;
+    color: #2c3e50;
+}
+
+.close-modal {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+    background: none;
+    border: none;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.close-modal:hover {
+    color: #000;
+    background: #f0f0f0;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.customize-section {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.customize-section label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.color-input {
+    width: 60px;
+    height: 45px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.reset-colors-btn {
+    background: #f1f3f5;
+    border: 2px solid #ddd;
+    padding: 10px 20px;
+    border-radius: 40px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    font-size: 1rem;
+}
+
+.reset-colors-btn:hover {
+    background: #e9ecef;
+    transform: scale(1.02);
+}
+
 /* Контейнер для draggable сетки */
 .dashboard {
     max-width: 1400px;
@@ -218,44 +367,6 @@ body {
     margin: 8px 0;
 }
 
-/* Панель кастомизации */
-.custom-panel {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.color-group {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.color-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-input.color-input {
-    width: 48px;
-    height: 38px;
-    border: 2px solid #ccc;
-    border-radius: 16px;
-    cursor: pointer;
-}
-
-.reset-btn {
-    background: #f1f3f5;
-    border: none;
-    padding: 8px 18px;
-    border-radius: 40px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
 /* Drag and Drop стили */
 .draggable {
     cursor: grab;
@@ -277,40 +388,6 @@ input.color-input {
     opacity: 0.7;
 }
 
-/* Блок управления блокировкой */
-.lock-control {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 1.5rem;
-    max-width: 1400px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.lock-btn {
-    background: rgba(135, 206, 235, 0.2);
-    border: 1px solid #87CEEB;
-    border-radius: 60px;
-    padding: 10px 24px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-    backdrop-filter: blur(4px);
-}
-
-.lock-btn:hover {
-    background: rgba(135, 206, 235, 0.4);
-    transform: scale(0.98);
-}
-
-.lock-icon {
-    font-size: 1.2rem;
-}
-
 .drag-handle-disabled {
     cursor: default !important;
     opacity: 0.4;
@@ -320,5 +397,7 @@ input.color-input {
 @media (max-width: 700px) {
     .dashboard { grid-template-columns: 1fr; }
     .start-btn { width: 140px; height: 140px; font-size: 1.8rem; }
-    .lock-control { margin-bottom: 1rem; }
+    .control-panel { margin-bottom: 1rem; }
+    .modal-content { margin: 20% auto; width: 95%; }
+    .customize-section { flex-direction: column; align-items: flex-start; }
 }

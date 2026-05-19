@@ -4,8 +4,9 @@ const startBtn = document.getElementById('startBtn');
 const pulseLayer = document.getElementById('pulseLayer');
 const plannerApp = document.getElementById('plannerApp');
 const lockToggleBtn = document.getElementById('lockToggleBtn');
-const lockStatusText = document.getElementById('lockStatusText');
-const dragStateIndicator = document.getElementById('dragStateIndicator');
+const customizeBtn = document.getElementById('customizeBtn');
+const customizeModal = document.getElementById('customizeModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
 const dashboard = document.getElementById('dashboardContainer');
 
 // Состояние блокировки рабочего стола
@@ -39,6 +40,23 @@ function startPulseAndOpenPlanner() {
 }
 
 startBtn.addEventListener('click', startPulseAndOpenPlanner);
+
+// ------------------- МОДАЛЬНОЕ ОКНО КАСТОМИЗАЦИИ -------------------
+function openModal() {
+    customizeModal.style.display = 'block';
+}
+
+function closeModal() {
+    customizeModal.style.display = 'none';
+}
+
+customizeBtn.addEventListener('click', openModal);
+closeModalBtn.addEventListener('click', closeModal);
+window.addEventListener('click', (e) => {
+    if (e.target === customizeModal) {
+        closeModal();
+    }
+});
 
 // ------------------- УПРАВЛЕНИЕ ЗАДАЧАМИ -------------------
 const taskListEl = document.getElementById('taskList');
@@ -107,7 +125,6 @@ function loadTasksFromLocal() {
         });
         bindTaskEvents();
     } else {
-        // Добавляем задачи по умолчанию только если нет сохраненных
         const defaultTasks = [
             { text: "Создать красивый планер ✨", completed: false },
             { text: "Настроить цвета под настроение", completed: false },
@@ -170,7 +187,7 @@ const resetColorsBtn = document.getElementById('resetColorsBtn');
 function applyColors() {
     plannerApp.style.backgroundColor = bgPageColor.value;
     document.querySelectorAll('.planner-app, .planner-app *').forEach(el => {
-        if (!el.classList || (!el.classList.contains('color-input') && el.tagName !== 'INPUT' && el.tagName !== 'BUTTON' && !el.closest('.color-group'))) {
+        if (!el.classList || (!el.classList.contains('color-input') && el.tagName !== 'INPUT' && el.tagName !== 'BUTTON' && !el.closest('.customize-section'))) {
             el.style.color = textColor.value;
         }
     });
@@ -183,8 +200,9 @@ function applyColors() {
     });
     const addBtns = document.querySelectorAll('.add-task-form button');
     addBtns.forEach(btn => btn.style.backgroundColor = accentColor.value);
-    document.querySelectorAll('.reset-btn, .icon-btn').forEach(btn => {
+    document.querySelectorAll('.reset-colors-btn, .icon-btn, .control-btn').forEach(btn => {
         btn.style.color = accentColor.value;
+        btn.style.borderColor = accentColor.value + '80';
     });
 }
 
@@ -235,17 +253,15 @@ function updateDragState() {
             handle.setAttribute('draggable', 'false');
             handle.classList.add('drag-handle-disabled');
         });
-        if (dragStateIndicator) dragStateIndicator.innerText = 'заблокировано';
-        lockStatusText.innerText = 'Заблокирован';
-        document.querySelector('.lock-icon').innerHTML = '🔒';
+        lockToggleBtn.querySelector('.lock-icon').innerHTML = '🔒';
+        lockToggleBtn.title = 'Разблокировать перемещение блоков';
     } else {
         handles.forEach(handle => {
             handle.setAttribute('draggable', 'true');
             handle.classList.remove('drag-handle-disabled');
         });
-        if (dragStateIndicator) dragStateIndicator.innerText = 'активно';
-        lockStatusText.innerText = 'Разблокирован';
-        document.querySelector('.lock-icon').innerHTML = '🔓';
+        lockToggleBtn.querySelector('.lock-icon').innerHTML = '🔓';
+        lockToggleBtn.title = 'Заблокировать перемещение блоков';
     }
 }
 

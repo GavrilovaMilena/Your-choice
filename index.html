@@ -18,12 +18,45 @@
 
 <!-- ГЛАВНОЕ ПРИЛОЖЕНИЕ ПЛАНЕРА -->
 <div id="plannerApp" class="planner-app">
-    <!-- Панель блокировки рабочего стола -->
-    <div class="lock-control">
-        <button id="lockToggleBtn" class="lock-btn">
+    <!-- Панель управления (блокировка + кастомизация) -->
+    <div class="control-panel">
+        <button id="lockToggleBtn" class="control-btn" title="Заблокировать/разблокировать перемещение блоков">
             <span class="lock-icon">🔓</span>
-            <span id="lockStatusText">Разблокирован</span>
         </button>
+        <button id="customizeBtn" class="control-btn" title="Кастомизация внешнего вида">
+            <span class="customize-icon">🎨</span>
+        </button>
+    </div>
+    
+    <!-- Модальное окно кастомизации -->
+    <div id="customizeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Кастомизация внешнего вида</h2>
+                <button class="close-modal" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="customize-section">
+                    <label>🎨 Фон страницы</label>
+                    <input type="color" id="bgPageColor" value="#f0f8ff" class="color-input">
+                </div>
+                <div class="customize-section">
+                    <label>📝 Цвет текста</label>
+                    <input type="color" id="textColor" value="#1e2a3e" class="color-input">
+                </div>
+                <div class="customize-section">
+                    <label>📦 Фон блоков</label>
+                    <input type="color" id="cardBgColor" value="#ffffff" class="color-input">
+                </div>
+                <div class="customize-section">
+                    <label>✨ Цвет иконок/акцент</label>
+                    <input type="color" id="accentColor" value="#87CEEB" class="color-input">
+                </div>
+                <div class="customize-section">
+                    <button id="resetColorsBtn" class="reset-colors-btn">Сбросить все цвета</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div class="dashboard" id="dashboardContainer">
@@ -56,48 +89,14 @@
             </div>
             <div class="tips-box" id="tipsContent">
                 <div class="tip-text">✨ Нажми на иконку ⋮⋮ чтобы перетащить любой блок</div>
-                <div class="tip-text">🎨 Ниже меняй цвета страницы, текста, блоков и иконок!</div>
+                <div class="tip-text">🎨 Нажми на кнопку 🎨 сверху для настройки цветов</div>
                 <div class="tip-text">✅ Отмечай выполненные задачи — они зачеркнутся</div>
                 <div class="tip-text">➕ Добавляй свои дела через форму</div>
-                <div class="tip-text">🔒 Используй кнопку блокировки чтобы зафиксировать расположение блоков</div>
-            </div>
-        </div>
-
-        <!-- БЛОК КАСТОМИЗАЦИИ (настройки внешнего вида и расположения тоже) -->
-        <div class="card" data-block="customBlock" id="customCard">
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="block-icon">🎨</span>
-                    <span>Кастомизация</span>
-                </div>
-                <button class="icon-btn drag-handle" id="dragCustomHandle" title="Перетащить блок">⋮⋮</button>
-            </div>
-            <div class="custom-panel">
-                <div class="color-group">
-                    <span class="color-label">Фон страницы</span>
-                    <input type="color" id="bgPageColor" value="#f0f8ff" class="color-input">
-                </div>
-                <div class="color-group">
-                    <span class="color-label">Цвет текста</span>
-                    <input type="color" id="textColor" value="#1e2a3e" class="color-input">
-                </div>
-                <div class="color-group">
-                    <span class="color-label">Блоки (фон)</span>
-                    <input type="color" id="cardBgColor" value="#ffffff" class="color-input">
-                </div>
-                <div class="color-group">
-                    <span class="color-label">Иконки/акцент</span>
-                    <input type="color" id="accentColor" value="#87CEEB" class="color-input">
-                </div>
-                <div style="margin-top: 8px; width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                    <button id="resetColorsBtn" class="reset-btn">Сбросить цвета</button>
-                    <span class="info-text" style="margin:0;">💡 Перетаскивание: <span id="dragStateIndicator">активно</span></span>
-                </div>
-                <div class="info-text" style="margin-top: 12px;">🔒 Нажми на замок сверху — заблокируй/разблокируй расположение блоков</div>
+                <div class="tip-text">🔒 Используй кнопку с замком для блокировки расположения блоков</div>
             </div>
         </div>
     </div>
-    <div class="info-text">✨ Небесный планер | Любой блок можно перемещать, если стол разблокирован ✨</div>
+    <div class="info-text">✨ Небесный планер | Перемещай блоки за ⋮⋮, если стол разблокирован ✨</div>
 </div>
 
 <script src="script.js"></script>
