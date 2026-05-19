@@ -3,51 +3,73 @@ const { useState, useEffect } = React;
 // Компонент стартового экрана
 const StartScreen = ({ onStart }) => {
     const [isAnimating, setIsAnimating] = useState(false);
-    const [pulseStyle, setPulseStyle] = useState({});
+    const [shouldHide, setShouldHide] = useState(false);
 
     const handleStart = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         
-        setPulseStyle({
-            transformOrigin: `${centerX}px ${centerY}px`,
-            display: 'block'
-        });
+        // Сначала запускаем анимацию кнопки (она начнет уменьшаться)
         setIsAnimating(true);
         
+        // Создаем и настраиваем пульсирующий слой
+        const pulseLayer = document.createElement('div');
+        pulseLayer.className = 'pulse-overlay';
+        pulseLayer.style.transformOrigin = `${centerX}px ${centerY}px`;
+        pulseLayer.style.position = 'fixed';
+        pulseLayer.style.top = '0';
+        pulseLayer.style.left = '0';
+        pulseLayer.style.width = '100%';
+        pulseLayer.style.height = '100%';
+        pulseLayer.style.backgroundColor = '#87CEEB';
+        pulseLayer.style.zIndex = '1001';
+        pulseLayer.style.pointerEvents = 'none';
+        pulseLayer.style.borderRadius = '50%';
+        pulseLayer.style.transform = 'scale(0)';
+        pulseLayer.style.transition = 'transform 1.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease';
+        document.body.appendChild(pulseLayer);
+        
+        // Небольшая задержка для запуска анимации
         setTimeout(() => {
-            setPulseStyle({
-                transformOrigin: `${centerX}px ${centerY}px`,
-                transform: 'scale(100)',
-                opacity: 1,
-                display: 'block'
-            });
+            pulseLayer.style.transform = 'scale(100)';
+            pulseLayer.style.opacity = '1';
         }, 10);
         
+        // Через 300 мс кнопка начинает исчезать
         setTimeout(() => {
+            setShouldHide(true);
+        }, 300);
+        
+        // Через 1.6 секунд (когда анимация почти завершена) переходим к следующему экрану
+        setTimeout(() => {
+            // Удаляем пульсирующий слой
+            if (pulseLayer && pulseLayer.parentNode) {
+                pulseLayer.style.opacity = '0';
+                setTimeout(() => {
+                    if (pulseLayer && pulseLayer.parentNode) {
+                        pulseLayer.parentNode.removeChild(pulseLayer);
+                    }
+                }, 500);
+            }
             onStart();
         }, 1600);
     };
 
     return (
-        <>
-            <div className="start-screen">
-                <button className="start-btn" onClick={handleStart}>
-                    START
-                </button>
-            </div>
-            {isAnimating && (
-                <div 
-                    className="pulse-overlay" 
-                    style={pulseStyle}
-                    onTransitionEnd={() => {
-                        const overlay = document.querySelector('.pulse-overlay');
-                        if (overlay) overlay.style.display = 'none';
-                    }}
-                />
-            )}
-        </>
+        <div className="start-screen" style={{ opacity: shouldHide ? 0 : 1, transition: 'opacity 0.5s ease' }}>
+            <button 
+                className="start-btn" 
+                onClick={handleStart}
+                style={{
+                    transform: isAnimating ? 'scale(0.8)' : 'scale(1)',
+                    opacity: isAnimating ? 0 : 1,
+                    transition: 'transform 0.4s ease, opacity 0.4s ease'
+                }}
+            >
+                START
+            </button>
+        </div>
     );
 };
 
@@ -70,11 +92,12 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
                 <button className="notification-close" onClick={onClose}>&times;</button>
             </div>
             <div className="notification-body">
-                <div className="tip-item">✨ Нажми на иконку ⋮⋮ чтобы перетащить любой блок</div>
-                <div className="tip-item">🎨 Нажми на кнопку 🎨 для настройки цветов</div>
+                <div className="tip-item">✨ Перетаскивай задачи (если стол разблокирован)</div>
+                <div className="tip-item">🎨 Настрой цвета через модальное окно</div>
                 <div className="tip-item">✅ Отмечай выполненные задачи</div>
                 <div className="tip-item">➕ Добавляй новые дела</div>
-                <div className="tip-item">🔒 Блокируй расположение блоков замком</div>
+                <div className="tip-item">🔒 Блокируй расположение задач замком</div>
+                <div className="tip-item">📋 Создавай несколько рабочих столов</div>
             </div>
             <div className="notification-footer">
                 <label className="dont-show-again">
@@ -98,7 +121,6 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave, onReset }) => {
 
     const handleChange = (key, value) => {
         setLocalColors(prev => ({ ...prev, [key]: value }));
-        // Применяем предпросмотр
         onSave({ ...localColors, [key]: value }, true);
     };
 
@@ -177,7 +199,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave, onReset }) => {
 };
 
 // Компонент рабочего стола (планер задач)
-const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }) => {
+const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock, onOpenCustomize }) => {
     const [tasks, setTasks] = useState(desktop.tasks || []);
     const [newTask, setNewTask] = useState('');
     const [draggedItem, setDraggedItem] = useState(null);
@@ -217,6 +239,12 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
         }
         setDraggedItem(id);
         e.dataTransfer.setData('text/plain', id);
+        e.target.style.opacity = '0.5';
+    };
+
+    const handleDragEnd = (e) => {
+        e.target.style.opacity = '';
+        setDraggedItem(null);
     };
 
     const handleDragOver = (e) => {
@@ -239,11 +267,6 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
         setDraggedItem(null);
     };
 
-    // Применение цветов
-    useEffect(() => {
-        document.querySelector('.planner-app')?.style.setProperty('background-color', colors.bgPage);
-    }, [colors]);
-
     return (
         <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
             <div className="control-panel">
@@ -251,7 +274,10 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
                     ← Назад к столам
                 </button>
                 <div className="control-buttons">
-                    <button className="control-btn" onClick={onToggleLock}>
+                    <button className="control-btn" onClick={onOpenCustomize} title="Настройка цветов">
+                        🎨
+                    </button>
+                    <button className="control-btn" onClick={onToggleLock} title={isLocked ? "Разблокировать" : "Заблокировать"}>
                         <span>{isLocked ? '🔒' : '🔓'}</span>
                     </button>
                 </div>
@@ -272,6 +298,7 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
                                 className="task-item"
                                 draggable={!isLocked}
                                 onDragStart={(e) => handleDragStart(e, task.id)}
+                                onDragEnd={handleDragEnd}
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, task.id)}
                                 style={{ cursor: isLocked ? 'default' : 'grab' }}
@@ -283,12 +310,13 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
                                     onChange={() => toggleTask(task.id)}
                                     style={{ accentColor: colors.accent }}
                                 />
-                                <span className={`task-text ${task.completed ? 'done' : ''}`}>
+                                <span className={`task-text ${task.completed ? 'done' : ''}`} style={{ color: colors.text }}>
                                     {task.text}
                                 </span>
                                 <button 
                                     className="delete-task"
                                     onClick={() => deleteTask(task.id)}
+                                    style={{ color: colors.text }}
                                 >
                                     🗑️
                                 </button>
@@ -302,6 +330,7 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
                             onChange={(e) => setNewTask(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && addTask()}
                             placeholder="Новая задача..."
+                            style={{ color: colors.text }}
                         />
                         <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
                             + Добавить
@@ -317,22 +346,25 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock }
 };
 
 // Компонент выбора рабочего стола
-const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDesktop }) => {
+const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDesktop, onOpenCustomize }) => {
     return (
         <div className="desktops-screen">
             <div className="desktops-header">
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                    <button className="control-btn" onClick={onOpenCustomize} title="Настройка цветов">
+                        🎨
+                    </button>
+                </div>
                 <h1>📋 Мои столы</h1>
                 <p>Выберите рабочий стол или создайте новый</p>
             </div>
             <div className="desktops-grid">
-                {/* Карточка создания нового стола */}
                 <div className="desktop-card add-desktop-card" onClick={onCreateDesktop}>
                     <div className="add-icon">➕</div>
                     <h3>Создать новый стол</h3>
                     <p>Нажмите чтобы добавить</p>
                 </div>
                 
-                {/* Существующие столы */}
                 {desktops.map(desktop => (
                     <div key={desktop.id} className="desktop-card" onClick={() => onSelectDesktop(desktop.id)}>
                         <button 
@@ -373,7 +405,6 @@ const App = () => {
     const [showTips, setShowTips] = useState(false);
     const [showCustomize, setShowCustomize] = useState(false);
 
-    // Загрузка данных из localStorage
     useEffect(() => {
         const savedDesktops = localStorage.getItem('skyPlanner_desktops');
         const savedColors = localStorage.getItem('skyPlanner_colors');
@@ -383,13 +414,9 @@ const App = () => {
         if (savedDesktops) {
             const parsed = JSON.parse(savedDesktops);
             setDesktops(parsed);
-            if (parsed.length === 0) {
-                setShowStart(true);
-            } else {
+            if (parsed.length > 0) {
                 setShowStart(false);
             }
-        } else {
-            setShowStart(true);
         }
 
         if (savedColors) {
@@ -405,16 +432,14 @@ const App = () => {
         }
     }, []);
 
-    // Сохранение данных
     useEffect(() => {
-        if (desktops.length > 0 || !showStart) {
+        if (desktops.length > 0) {
             localStorage.setItem('skyPlanner_desktops', JSON.stringify(desktops));
         }
     }, [desktops]);
 
     useEffect(() => {
         localStorage.setItem('skyPlanner_colors', JSON.stringify(colors));
-        // Применяем цвета глобально
         document.body.style.backgroundColor = colors.bgPage;
     }, [colors]);
 
@@ -424,22 +449,21 @@ const App = () => {
 
     const handleStart = () => {
         setShowStart(false);
-        // Создаем первый дефолтный стол
         const defaultDesktop = {
             id: Date.now(),
             name: 'Мой первый стол',
             tasks: [
                 { id: 1, text: 'Создать красивый планер ✨', completed: false },
                 { id: 2, text: 'Настроить цвета под настроение', completed: false },
-                { id: 3, text: 'Перемещать задачи', completed: false }
+                { id: 3, text: 'Перемещать задачи', completed: false },
+                { id: 4, text: 'Создать новый рабочий стол', completed: false }
             ]
         };
         setDesktops([defaultDesktop]);
-        setCurrentDesktop(defaultDesktop);
         
         setTimeout(() => {
             setShowTips(true);
-        }, 1000);
+        }, 500);
     };
 
     const createNewDesktop = () => {
@@ -484,12 +508,10 @@ const App = () => {
         localStorage.setItem('skyPlanner_dontShowTips', 'true');
     };
 
-    // Если показываем стартовый экран
     if (showStart) {
         return <StartScreen onStart={handleStart} />;
     }
 
-    // Если выбран конкретный рабочий стол
     if (currentDesktop) {
         return (
             <>
@@ -500,6 +522,7 @@ const App = () => {
                     colors={colors}
                     isLocked={isLocked}
                     onToggleLock={() => setIsLocked(!isLocked)}
+                    onOpenCustomize={() => setShowCustomize(true)}
                 />
                 {showTips && (
                     <TipsNotification 
@@ -517,7 +540,6 @@ const App = () => {
         );
     }
 
-    // Показываем список столов
     return (
         <>
             <DesktopsScreen 
@@ -525,6 +547,7 @@ const App = () => {
                 onCreateDesktop={createNewDesktop}
                 onSelectDesktop={selectDesktop}
                 onDeleteDesktop={deleteDesktop}
+                onOpenCustomize={() => setShowCustomize(true)}
             />
             {showTips && (
                 <TipsNotification 
@@ -543,4 +566,9 @@ const App = () => {
 };
 
 // Рендерим приложение
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+const rootElement = document.getElementById('root');
+if (ReactDOM.createRoot) {
+    ReactDOM.createRoot(rootElement).render(<App />);
+} else {
+    ReactDOM.render(<App />, rootElement);
+}
