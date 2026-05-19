@@ -52,10 +52,31 @@
                     <label>✨ Цвет иконок/акцент</label>
                     <input type="color" id="accentColor" value="#87CEEB" class="color-input">
                 </div>
-                <div class="customize-section">
-                    <button id="resetColorsBtn" class="reset-colors-btn">Сбросить все цвета</button>
+                <div class="modal-buttons">
+                    <button id="resetColorsBtn" class="modal-reset-btn">Сбросить к стандартным</button>
+                    <button id="saveColorsBtn" class="modal-save-btn">Сохранить изменения</button>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Всплывающее уведомление с подсказками -->
+    <div id="tipsNotification" class="tips-notification" style="display: none;">
+        <div class="notification-header">
+            <span class="notification-title">💡 Подсказки дня</span>
+            <button class="notification-close" id="closeNotificationBtn">&times;</button>
+        </div>
+        <div class="notification-body">
+            <div class="tip-item">✨ Нажми на иконку ⋮⋮ чтобы перетащить любой блок</div>
+            <div class="tip-item">🎨 Нажми на кнопку 🎨 сверху для настройки цветов</div>
+            <div class="tip-item">✅ Отмечай выполненные задачи — они зачеркнутся</div>
+            <div class="tip-item">➕ Добавляй свои дела через форму</div>
+            <div class="tip-item">🔒 Используй кнопку с замком для блокировки расположения блоков</div>
+        </div>
+        <div class="notification-footer">
+            <label class="dont-show-again">
+                <input type="checkbox" id="dontShowAgainCheckbox"> Больше не показывать
+            </label>
         </div>
     </div>
     
@@ -75,24 +96,6 @@
             <div class="add-task-form">
                 <input type="text" id="newTaskInput" placeholder="Новая задача...">
                 <button id="addTaskBtn">+ Добавить</button>
-            </div>
-        </div>
-
-        <!-- БЛОК ПОДСКАЗОК (советы) -->
-        <div class="card" data-block="tipsBlock" id="tipsCard">
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="block-icon">💡</span>
-                    <span>Подсказки дня</span>
-                </div>
-                <button class="icon-btn drag-handle" id="dragTipsHandle" title="Перетащить блок">⋮⋮</button>
-            </div>
-            <div class="tips-box" id="tipsContent">
-                <div class="tip-text">✨ Нажми на иконку ⋮⋮ чтобы перетащить любой блок</div>
-                <div class="tip-text">🎨 Нажми на кнопку 🎨 сверху для настройки цветов</div>
-                <div class="tip-text">✅ Отмечай выполненные задачи — они зачеркнутся</div>
-                <div class="tip-text">➕ Добавляй свои дела через форму</div>
-                <div class="tip-text">🔒 Используй кнопку с замком для блокировки расположения блоков</div>
             </div>
         </div>
     </div>

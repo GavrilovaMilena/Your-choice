@@ -7,7 +7,12 @@ const lockToggleBtn = document.getElementById('lockToggleBtn');
 const customizeBtn = document.getElementById('customizeBtn');
 const customizeModal = document.getElementById('customizeModal');
 const closeModalBtn = document.getElementById('closeModalBtn');
+const saveColorsBtn = document.getElementById('saveColorsBtn');
+const resetColorsBtn = document.getElementById('resetColorsBtn');
 const dashboard = document.getElementById('dashboardContainer');
+const tipsNotification = document.getElementById('tipsNotification');
+const closeNotificationBtn = document.getElementById('closeNotificationBtn');
+const dontShowAgainCheckbox = document.getElementById('dontShowAgainCheckbox');
 
 // Состояние блокировки рабочего стола
 let isDesktopLocked = false;
@@ -36,10 +41,36 @@ function startPulseAndOpenPlanner() {
         setTimeout(() => {
             pulseLayer.style.display = 'none';
         }, 400);
+        // Показываем уведомление после открытия планера
+        showTipsNotification();
     }, 850);
 }
 
 startBtn.addEventListener('click', startPulseAndOpenPlanner);
+
+// ------------------- УПРАВЛЕНИЕ ПОДСКАЗКАМИ -------------------
+function showTipsNotification() {
+    const dontShow = localStorage.getItem('skyPlanner_dontShowTips');
+    if (dontShow === 'true') {
+        return;
+    }
+    tipsNotification.style.display = 'block';
+}
+
+function closeNotification() {
+    tipsNotification.style.display = 'none';
+}
+
+closeNotificationBtn.addEventListener('click', closeNotification);
+
+dontShowAgainCheckbox.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        localStorage.setItem('skyPlanner_dontShowTips', 'true');
+        closeNotification();
+    } else {
+        localStorage.setItem('skyPlanner_dontShowTips', 'false');
+    }
+});
 
 // ------------------- МОДАЛЬНОЕ ОКНО КАСТОМИЗАЦИИ -------------------
 function openModal() {
@@ -182,66 +213,108 @@ const bgPageColor = document.getElementById('bgPageColor');
 const textColor = document.getElementById('textColor');
 const cardBgColor = document.getElementById('cardBgColor');
 const accentColor = document.getElementById('accentColor');
-const resetColorsBtn = document.getElementById('resetColorsBtn');
 
-function applyColors() {
-    plannerApp.style.backgroundColor = bgPageColor.value;
+// Стандартные цвета
+const defaultColors = {
+    bgPage: '#f0f8ff',
+    text: '#1e2a3e',
+    cardBg: '#ffffff',
+    accent: '#87CEEB'
+};
+
+// Временное хранилище для предпросмотра
+let tempColors = { ...defaultColors };
+
+function applyColors(colors) {
+    plannerApp.style.backgroundColor = colors.bgPage;
     document.querySelectorAll('.planner-app, .planner-app *').forEach(el => {
-        if (!el.classList || (!el.classList.contains('color-input') && el.tagName !== 'INPUT' && el.tagName !== 'BUTTON' && !el.closest('.customize-section'))) {
-            el.style.color = textColor.value;
+        if (!el.classList || (!el.classList.contains('color-input') && el.tagName !== 'INPUT' && el.tagName !== 'BUTTON' && !el.closest('.customize-section') && !el.closest('.modal'))) {
+            el.style.color = colors.text;
         }
     });
     document.querySelectorAll('.card-title .block-icon, .card-title span').forEach(icon => {
-        icon.style.color = accentColor.value;
+        icon.style.color = colors.accent;
     });
     document.querySelectorAll('.card').forEach(card => {
-        card.style.backgroundColor = cardBgColor.value;
-        card.style.borderColor = accentColor.value + '80';
+        card.style.backgroundColor = colors.cardBg;
+        card.style.borderColor = colors.accent + '80';
     });
     const addBtns = document.querySelectorAll('.add-task-form button');
-    addBtns.forEach(btn => btn.style.backgroundColor = accentColor.value);
-    document.querySelectorAll('.reset-colors-btn, .icon-btn, .control-btn').forEach(btn => {
-        btn.style.color = accentColor.value;
-        btn.style.borderColor = accentColor.value + '80';
+    addBtns.forEach(btn => btn.style.backgroundColor = colors.accent);
+    document.querySelectorAll('.modal-save-btn, .icon-btn, .control-btn').forEach(btn => {
+        btn.style.color = colors.accent;
+        btn.style.borderColor = colors.accent + '80';
+    });
+    document.querySelectorAll('.modal-save-btn').forEach(btn => {
+        btn.style.backgroundColor = colors.accent;
     });
 }
 
-function saveColorSettings() {
-    const settings = {
+function saveColorsToLocal(colors) {
+    localStorage.setItem('skyPlanner_colors', JSON.stringify(colors));
+}
+
+function loadColorsFromLocal() {
+    const saved = localStorage.getItem('skyPlanner_colors');
+    if (saved) {
+        const cols = JSON.parse(saved);
+        tempColors = { ...cols };
+        bgPageColor.value = cols.bgPage;
+        textColor.value = cols.text;
+        cardBgColor.value = cols.cardBg;
+        accentColor.value = cols.accent;
+        applyColors(cols);
+    } else {
+        resetToDefaultColors();
+    }
+}
+
+function resetToDefaultColors() {
+    tempColors = { ...defaultColors };
+    bgPageColor.value = defaultColors.bgPage;
+    textColor.value = defaultColors.text;
+    cardBgColor.value = defaultColors.cardBg;
+    accentColor.value = defaultColors.accent;
+    applyColors(defaultColors);
+}
+
+function previewColors() {
+    const preview = {
         bgPage: bgPageColor.value,
         text: textColor.value,
         cardBg: cardBgColor.value,
         accent: accentColor.value
     };
-    localStorage.setItem('skyPlanner_colors', JSON.stringify(settings));
+    applyColors(preview);
 }
 
-function loadColorSettings() {
-    const saved = localStorage.getItem('skyPlanner_colors');
-    if (saved) {
-        const cols = JSON.parse(saved);
-        bgPageColor.value = cols.bgPage;
-        textColor.value = cols.text;
-        cardBgColor.value = cols.cardBg;
-        accentColor.value = cols.accent;
-        applyColors();
-    } else {
-        applyColors();
-    }
+function saveColors() {
+    tempColors = {
+        bgPage: bgPageColor.value,
+        text: textColor.value,
+        cardBg: cardBgColor.value,
+        accent: accentColor.value
+    };
+    applyColors(tempColors);
+    saveColorsToLocal(tempColors);
+    closeModal();
 }
 
-bgPageColor.addEventListener('input', () => { applyColors(); saveColorSettings(); });
-textColor.addEventListener('input', () => { applyColors(); saveColorSettings(); });
-cardBgColor.addEventListener('input', () => { applyColors(); saveColorSettings(); });
-accentColor.addEventListener('input', () => { applyColors(); saveColorSettings(); });
+// Предпросмотр при изменении цветов в модалке
+bgPageColor.addEventListener('input', previewColors);
+textColor.addEventListener('input', previewColors);
+cardBgColor.addEventListener('input', previewColors);
+accentColor.addEventListener('input', previewColors);
+
 resetColorsBtn.addEventListener('click', () => {
-    bgPageColor.value = '#f0f8ff';
-    textColor.value = '#1e2a3e';
-    cardBgColor.value = '#ffffff';
-    accentColor.value = '#87CEEB';
-    applyColors();
-    saveColorSettings();
+    resetToDefaultColors();
+    bgPageColor.value = defaultColors.bgPage;
+    textColor.value = defaultColors.text;
+    cardBgColor.value = defaultColors.cardBg;
+    accentColor.value = defaultColors.accent;
 });
+
+saveColorsBtn.addEventListener('click', saveColors);
 
 // ------------------- DRAG & DROP С БЛОКИРОВКОЙ -------------------
 let draggedItem = null;
@@ -392,7 +465,7 @@ function loadLockState() {
 // ------------------- ИНИЦИАЛИЗАЦИЯ -------------------
 function init() {
     loadTasksFromLocal();
-    loadColorSettings();
+    loadColorsFromLocal();
     loadOrderFromLocal();
     loadLockState();
     setupDragAndDrop();
