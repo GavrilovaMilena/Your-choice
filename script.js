@@ -342,22 +342,22 @@ const Workspace = ({ desktop, onUpdate, onBack, colors, isLocked, onToggleLock, 
 
 // Компонент выбора рабочего стола
 const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDesktop, onRenameDesktop }) => {
-    const [showTooltip, setShowTooltip] = useState(false);
+    const [showTooltipForDesktop, setShowTooltipForDesktop] = useState(null);
 
     useEffect(() => {
-        // Показываем подсказку, если пользователь еще не видел
+        // Показываем подсказку для первого стола, если она еще не показывалась
         const tooltipShown = localStorage.getItem('skyPlanner_renameTooltip');
         if (!tooltipShown && desktops.length > 0) {
-            setShowTooltip(true);
+            setShowTooltipForDesktop(desktops[0].id);
             setTimeout(() => {
-                setShowTooltip(false);
+                setShowTooltipForDesktop(null);
                 localStorage.setItem('skyPlanner_renameTooltip', 'true');
             }, 5000);
         }
     }, [desktops]);
 
     const handleDoubleClick = (desktop, e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Останавливаем всплытие, чтобы не открывался стол
         const newName = prompt('Введите новое название стола:', desktop.name);
         if (newName && newName.trim()) {
             onRenameDesktop(desktop.id, newName.trim());
@@ -383,7 +383,6 @@ const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDe
                         key={desktop.id} 
                         className="desktop-card" 
                         onClick={() => onSelectDesktop(desktop.id)}
-                        onDoubleClick={(e) => handleDoubleClick(desktop, e)}
                     >
                         <button 
                             className="desktop-delete"
@@ -396,14 +395,19 @@ const DesktopsScreen = ({ desktops, onCreateDesktop, onSelectDesktop, onDeleteDe
                         >
                             🗑️
                         </button>
-                        <div className="desktop-title">📌 {desktop.name}</div>
+                        <div 
+                            className="desktop-title"
+                            onDoubleClick={(e) => handleDoubleClick(desktop, e)}
+                        >
+                            📌 {desktop.name}
+                        </div>
                         <div className="desktop-stats">
                             <span>✅ {desktop.tasks?.filter(t => t.completed).length || 0} выполнено</span>
                             <span>📝 {desktop.tasks?.length || 0} всего</span>
                         </div>
-                        {showTooltip && (
+                        {showTooltipForDesktop === desktop.id && (
                             <div className="rename-tooltip">
-                                ✏️ Если тыкнуть дважды, можно изменить название стола
+                                ✏️ Если дважды кликнуть по названию, можно изменить название стола
                                 <div className="tooltip-arrow">👇</div>
                             </div>
                         )}
@@ -420,7 +424,7 @@ const App = () => {
     const [desktops, setDesktops] = useState([]);
     const [currentDesktop, setCurrentDesktop] = useState(null);
     const [colors, setColors] = useState({
-        bgPage: '#87CEEB', // Изменено на небесно-голубой
+        bgPage: '#87CEEB',
         text: '#1e2a3e',
         cardBg: '#ffffff',
         accent: '#87CEEB'
@@ -446,14 +450,6 @@ const App = () => {
 
         if (savedColors) {
             setColors(JSON.parse(savedColors));
-        } else {
-            // Устанавливаем небесно-голубой фон по умолчанию
-            setColors({
-                bgPage: '#87CEEB',
-                text: '#1e2a3e',
-                cardBg: '#ffffff',
-                accent: '#87CEEB'
-            });
         }
 
         if (savedLocked) {
@@ -467,17 +463,13 @@ const App = () => {
 
     // Сохранение данных
     useEffect(() => {
-        if (desktops.length > 0 || (!showStart && desktops.length === 0)) {
+        if (desktops.length > 0) {
             localStorage.setItem('skyPlanner_desktops', JSON.stringify(desktops));
-        } else if (desktops.length === 0 && !showStart) {
-            // Если нет столов, возвращаем на стартовый экран
-            setShowStart(true);
         }
-    }, [desktops, showStart]);
+    }, [desktops]);
 
     useEffect(() => {
         localStorage.setItem('skyPlanner_colors', JSON.stringify(colors));
-        document.body.style.backgroundColor = colors.bgPage;
     }, [colors]);
 
     useEffect(() => {
@@ -486,17 +478,8 @@ const App = () => {
 
     const handleStart = () => {
         setShowStart(false);
-        const defaultDesktop = {
-            id: Date.now(),
-            name: 'Мой первый стол',
-            tasks: [
-                { id: 1, text: 'Создать красивый планер ✨', completed: false },
-                { id: 2, text: 'Настроить цвета под настроение', completed: false },
-                { id: 3, text: 'Перемещать задачи', completed: false },
-                { id: 4, text: 'Дважды кликни по названию стола, чтобы изменить его', completed: false }
-            ]
-        };
-        setDesktops([defaultDesktop]);
+        // Создаем пустой массив столов, без дефолтного стола
+        setDesktops([]);
         
         setTimeout(() => {
             setShowTips(true);
