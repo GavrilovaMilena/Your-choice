@@ -268,8 +268,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     y: block.y || 50,
   });
   const [size, setSize] = useState({
-    width: block.width || 380,
-    height: block.height || 400,
+    width: Math.max(420, block.width || 420),
+    height: Math.max(420, block.height || 420),
   });
   const dragStartRef = useRef({ x: 0, y: 0 });
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
@@ -337,8 +337,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (!isResizing || isLocked) return;
     const deltaX = e.clientX - resizeStartRef.current.x;
     const deltaY = e.clientY - resizeStartRef.current.y;
-    const newWidth = Math.max(280, resizeStartRef.current.width + deltaX);
-    const newHeight = Math.max(250, resizeStartRef.current.height + deltaY);
+    const newWidth = Math.max(420, resizeStartRef.current.width + deltaX);
+    const newHeight = Math.max(420, resizeStartRef.current.height + deltaY);
     setSize({ width: newWidth, height: newHeight });
   };
 
@@ -388,15 +388,14 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         style={{
           backgroundColor: colors.cardBg,
           borderColor: colors.accent + "80",
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
         }}
       >
-        <button className="card-delete" onClick={() => onDelete(block.id)}>
-          ✕
-        </button>
+        {/* Красный крестик - показываем только если не заблокирован */}
+        {!isLocked && (
+          <button className="card-delete" onClick={() => onDelete(block.id)}>
+            ✕
+          </button>
+        )}
         <div
           className="card-header card-drag-handle"
           style={{ cursor: isLocked ? "default" : "grab" }}
@@ -452,31 +451,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           </div>
         )}
         {!isLocked && (
-          <div
-            className="resize-handle"
-            onMouseDown={handleResizeStart}
-            style={{
-              position: "absolute",
-              bottom: "0",
-              right: "0",
-              width: "20px",
-              height: "20px",
-              cursor: "se-resize",
-              backgroundColor: "transparent",
-              zIndex: 10,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                bottom: "4px",
-                right: "4px",
-                width: "12px",
-                height: "12px",
-                borderRight: "2px solid #999",
-                borderBottom: "2px solid #999",
-              }}
-            ></div>
+          <div className="resize-handle" onMouseDown={handleResizeStart}>
+            <div></div>
           </div>
         )}
       </div>
@@ -497,7 +473,6 @@ const Workspace = ({
   const [blocks, setBlocks] = useState(desktop.blocks || []);
   const [showTips, setShowTips] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const canvasRef = useRef(null);
 
   useEffect(() => {
     const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
@@ -516,7 +491,7 @@ const Workspace = ({
   const addNewBlock = () => {
     const maxX = Math.max(
       50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
+      ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
     );
     const newBlock = {
       id: Date.now(),
@@ -525,8 +500,8 @@ const Workspace = ({
       tasks: [],
       x: maxX + 20,
       y: 50,
-      width: 380,
-      height: 400,
+      width: 420,
+      height: 420,
     };
     saveBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
@@ -656,7 +631,6 @@ const Workspace = ({
         </button>
       </div>
       <div
-        ref={canvasRef}
         className="free-canvas"
         style={{
           position: "relative",
