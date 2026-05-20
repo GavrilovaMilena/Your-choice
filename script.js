@@ -146,7 +146,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
-          🔒 Блокируй задачи кнопкой 🔒 справа сверху
+          🔒 Блокируй расположение блоков кнопкой 🔒 справа сверху
         </div>
       </div>
       <div className="notification-footer">
@@ -428,7 +428,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
                 className="task-check"
                 checked={task.completed}
                 onChange={() => toggleTask(task.id)}
-                disabled={isLocked}
               />
               <span
                 className={`task-text ${task.completed ? "done" : ""}`}
@@ -436,18 +435,15 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
               >
                 {task.text}
               </span>
-              {!isLocked && (
-                <button
-                  className="delete-task"
-                  onClick={() => deleteTask(task.id)}
-                >
-                  🗑️
-                </button>
-              )}
+              <button
+                className="delete-task"
+                onClick={() => deleteTask(task.id)}
+              >
+                🗑️
+              </button>
             </li>
           ))}
         </ul>
-        {/* Форма добавления задачи - всегда активна, даже при заблокированном экране */}
         <div className="add-task-form">
           <input
             value={newTask}
