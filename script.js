@@ -1,6 +1,4 @@
-const { useState, useEffect } = React;
-// Получаем Rnd из глобальной переменной
-const Rnd = window.ReactRnd ? window.ReactRnd.Rnd : window.ReactRnd;
+const { useState, useEffect, useRef } = React;
 
 // Кастомный диалог для ввода текста (переименование)
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
@@ -259,22 +257,26 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач
-const TaskBlock = ({
-  block,
-  onUpdate,
-  onDelete,
-  colors,
-  isLocked,
-  onDragStop,
-  onResizeStop,
-}) => {
+// Компонент блока (карточки) задач с ручным перетаскиванием и изменением размера
+const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [position, setPosition] = useState({
+    x: block.x || 50,
+    y: block.y || 50,
+  });
+  const [size, setSize] = useState({
+    width: block.width || 380,
+    height: block.height || 400,
+  });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   const saveTasks = (newTasks) => {
     setTasks(newTasks);
-    onUpdate({ ...block, tasks: newTasks });
+    onUpdate({ ...block, tasks: newTasks, ...position, ...size });
   };
 
   const addTask = () => {
@@ -293,63 +295,119 @@ const TaskBlock = ({
     saveTasks(tasks.filter((t) => t.id !== id));
   };
 
-  // Проверяем, что Rnd доступен
-  if (!Rnd) {
-    console.error("ReactRnd not loaded");
-    return <div>Loading...</div>;
-  }
+  // Обработчики перетаскивания
+  const handleDragStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging || isLocked) return;
+    const newX = e.clientX - dragStartRef.current.x;
+    const newY = e.clientY - dragStartRef.current.y;
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    onUpdate({ ...block, tasks, ...position, ...size });
+  };
+
+  // Обработчики изменения размера
+  const handleResizeStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    resizeStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: size.width,
+      height: size.height,
+    };
+  };
+
+  const handleResizeMove = (e) => {
+    if (!isResizing || isLocked) return;
+    const deltaX = e.clientX - resizeStartRef.current.x;
+    const deltaY = e.clientY - resizeStartRef.current.y;
+    const newWidth = Math.max(280, resizeStartRef.current.width + deltaX);
+    const newHeight = Math.max(250, resizeStartRef.current.height + deltaY);
+    setSize({ width: newWidth, height: newHeight });
+  };
+
+  const handleResizeEnd = () => {
+    if (!isResizing) return;
+    setIsResizing(false);
+    onUpdate({ ...block, tasks, ...position, ...size });
+  };
+
+  // Глобальные обработчики событий
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      handleDragMove(e);
+      handleResizeMove(e);
+    };
+    const handleMouseUp = () => {
+      handleDragEnd();
+      handleResizeEnd();
+    };
+
+    if (isDragging || isResizing) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, isResizing]);
 
   return (
-    <Rnd
-      default={{
-        x: block.x || 50,
-        y: block.y || 50,
-        width: block.width || 380,
-        height: block.height || 400,
+    <div
+      className="free-card-container"
+      style={{
+        position: "absolute",
+        left: position.x + "px",
+        top: position.y + "px",
+        width: size.width + "px",
+        height: size.height + "px",
+        cursor: isDragging ? "grabbing" : "default",
+        zIndex: isDragging || isResizing ? 1000 : 1,
       }}
-      minWidth={280}
-      minHeight={250}
-      bounds="parent"
-      dragHandleClassName="card-drag-handle"
-      enableResizing={!isLocked}
-      disableDragging={isLocked}
-      onDragStop={(e, data) => {
-        if (onDragStop) onDragStop(block.id, data.x, data.y);
-      }}
-      onResizeStop={(e, direction, ref, delta, position) => {
-        if (onResizeStop) {
-          onResizeStop(
-            block.id,
-            ref.offsetWidth,
-            ref.offsetHeight,
-            position.x,
-            position.y,
-          );
-        }
-      }}
-      style={{ position: "absolute" }}
-      className="rnd-container"
     >
       <div
         className="free-card"
         style={{
           backgroundColor: colors.cardBg,
           borderColor: colors.accent + "80",
+          height: "100%",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <button className="card-delete" onClick={() => onDelete(block.id)}>
           ✕
         </button>
-        <div className="card-header">
-          <div
-            className={`card-title card-drag-handle`}
-            style={{ cursor: isLocked ? "default" : "grab" }}
-          >
+        <div
+          className="card-header card-drag-handle"
+          style={{ cursor: isLocked ? "default" : "grab" }}
+          onMouseDown={handleDragStart}
+        >
+          <div className="card-title">
             <span>{block.icon || "📋"}</span>
             <span style={{ color: colors.accent }}>{block.title}</span>
           </div>
         </div>
-        <ul className="task-list">
+        <ul className="task-list" style={{ flex: 1, overflowY: "auto" }}>
           {tasks.map((task) => (
             <li key={task.id} className="task-item">
               <input
@@ -393,8 +451,36 @@ const TaskBlock = ({
             </button>
           </div>
         )}
+        {!isLocked && (
+          <div
+            className="resize-handle"
+            onMouseDown={handleResizeStart}
+            style={{
+              position: "absolute",
+              bottom: "0",
+              right: "0",
+              width: "20px",
+              height: "20px",
+              cursor: "se-resize",
+              backgroundColor: "transparent",
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                bottom: "4px",
+                right: "4px",
+                width: "12px",
+                height: "12px",
+                borderRight: "2px solid #999",
+                borderBottom: "2px solid #999",
+              }}
+            ></div>
+          </div>
+        )}
       </div>
-    </Rnd>
+    </div>
   );
 };
 
@@ -411,6 +497,7 @@ const Workspace = ({
   const [blocks, setBlocks] = useState(desktop.blocks || []);
   const [showTips, setShowTips] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
@@ -427,7 +514,6 @@ const Workspace = ({
   };
 
   const addNewBlock = () => {
-    // Находим позицию для нового блока (сдвигаем относительно других)
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
@@ -454,20 +540,6 @@ const Workspace = ({
     saveBlocks(
       blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
     );
-  };
-
-  const handleDragStop = (blockId, x, y) => {
-    const block = blocks.find((b) => b.id === blockId);
-    if (block) {
-      updateBlock({ ...block, x, y });
-    }
-  };
-
-  const handleResizeStop = (blockId, width, height, x, y) => {
-    const block = blocks.find((b) => b.id === blockId);
-    if (block) {
-      updateBlock({ ...block, width, height, x, y });
-    }
   };
 
   const handleMenuToggle = () => {
@@ -584,8 +656,13 @@ const Workspace = ({
         </button>
       </div>
       <div
+        ref={canvasRef}
         className="free-canvas"
-        style={{ position: "relative", minHeight: "calc(100vh - 80px)" }}
+        style={{
+          position: "relative",
+          minHeight: "calc(100vh - 80px)",
+          overflow: "hidden",
+        }}
       >
         {blocks.map((block) => (
           <TaskBlock
@@ -595,8 +672,6 @@ const Workspace = ({
             onDelete={deleteBlock}
             colors={colors}
             isLocked={isLocked}
-            onDragStop={handleDragStop}
-            onResizeStop={handleResizeStop}
           />
         ))}
       </div>
@@ -952,10 +1027,5 @@ const App = () => {
   );
 };
 
-// Рендерим приложение
 const rootElement = document.getElementById("root");
-if (ReactDOM.createRoot) {
-  ReactDOM.createRoot(rootElement).render(React.createElement(App));
-} else {
-  ReactDOM.render(React.createElement(App), rootElement);
-}
+ReactDOM.createRoot(rootElement).render(React.createElement(App));

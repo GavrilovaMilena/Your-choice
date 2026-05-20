@@ -1014,3 +1014,32 @@ body {
     min-width: 180px;
   }
 }
+/* Дополнительные стили для свободного позиционирования */
+.free-canvas {
+  position: relative;
+  min-height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+.free-card-container {
+  position: absolute;
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.card-drag-handle {
+  cursor: grab;
+}
+
+.card-drag-handle:active {
+  cursor: grabbing;
+}
