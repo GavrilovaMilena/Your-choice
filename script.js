@@ -466,7 +466,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент виджета часов
+// Компонент виджета часов (уменьшенная версия)
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
   const [clockType, setClockType] = useState(block.clockType || "analog");
@@ -559,7 +559,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             left: `${x}%`,
             top: `${y}%`,
             transform: "translate(-50%, -50%)",
-            fontSize: "16px",
+            fontSize: "14px",
             fontWeight: "bold",
             color: "#333",
           }}
@@ -619,8 +619,8 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         position: "absolute",
         left: position.x + "px",
         top: position.y + "px",
-        width: "320px",
-        height: "320px",
+        width: "180px",
+        height: "180px",
         cursor: isDragging ? "grabbing" : "default",
         zIndex: isDragging ? 1000 : 1,
       }}
@@ -630,6 +630,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         style={{
           background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
           position: "relative",
+          padding: "0.8rem",
         }}
       >
         {!isLocked && (
@@ -736,8 +737,8 @@ const Workspace = ({
       clockType: "analog",
       x: maxX + 20,
       y: 50,
-      width: 320,
-      height: 320,
+      width: 180,
+      height: 180,
     };
     saveBlocks([...blocks, newClock]);
     setIsMenuOpen(false);
