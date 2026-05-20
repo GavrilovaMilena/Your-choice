@@ -1,4 +1,5 @@
 const { useState, useEffect } = React;
+const { Rnd } = window.ReactRnd;
 
 // Кастомный диалог для ввода текста (переименование)
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
@@ -139,21 +140,12 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         </button>
       </div>
       <div className="notification-body">
-        <div className="tip-item">
-          ✨ Перетаскивай задачи (если стол разблокирован)
-        </div>
-        <div className="tip-item">
-          🎨 Настрой цвета через кнопку 🎨 в левом нижнем меню
-        </div>
-        <div className="tip-item">
-          ➕ Добавляй новые блоки через меню кнопки +
-        </div>
+        <div className="tip-item">✨ Перетаскивай блоки за заголовок</div>
+        <div className="tip-item">📏 Изменяй размер блоков за уголок</div>
+        <div className="tip-item">🎨 Настрой цвета через кнопку 🎨 в меню</div>
+        <div className="tip-item">➕ Добавляй новые блоки через кнопку +</div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
-        <div className="tip-item">📋 Создавай несколько столов (макс. 20)</div>
-        <div className="tip-item">
-          ✏️ Кликни по названию стола для изменения
-        </div>
         <div className="tip-item">
           🔒 Блокируй задачи кнопкой 🔒 справа сверху
         </div>
@@ -267,7 +259,15 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
 };
 
 // Компонент блока (карточки) задач
-const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+const TaskBlock = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  onDragStop,
+  onResizeStop,
+}) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
 
@@ -293,64 +293,101 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   };
 
   return (
-    <div
-      className="card"
-      style={{
-        backgroundColor: colors.cardBg,
-        borderColor: colors.accent + "80",
+    <Rnd
+      default={{
+        x: block.x || 50,
+        y: block.y || 50,
+        width: block.width || 380,
+        height: block.height || 400,
       }}
+      minWidth={280}
+      minHeight={250}
+      bounds="parent"
+      dragHandleClassName="card-drag-handle"
+      enableResizing={!isLocked}
+      disableDragging={isLocked}
+      onDragStop={(e, data) => {
+        if (onDragStop) onDragStop(block.id, data.x, data.y);
+      }}
+      onResizeStop={(e, direction, ref, delta, position) => {
+        if (onResizeStop) {
+          onResizeStop(
+            block.id,
+            ref.offsetWidth,
+            ref.offsetHeight,
+            position.x,
+            position.y,
+          );
+        }
+      }}
+      style={{ position: "absolute" }}
+      className="rnd-container"
     >
-      <button className="card-delete" onClick={() => onDelete(block.id)}>
-        ✕
-      </button>
-      <div className="card-header">
-        <div className="card-title">
-          <span>{block.icon || "📋"}</span>
-          <span style={{ color: colors.accent }}>{block.title}</span>
+      <div
+        className="free-card"
+        style={{
+          backgroundColor: colors.cardBg,
+          borderColor: colors.accent + "80",
+        }}
+      >
+        <button className="card-delete" onClick={() => onDelete(block.id)}>
+          ✕
+        </button>
+        <div className="card-header">
+          <div
+            className={`card-title card-drag-handle`}
+            style={{ cursor: isLocked ? "default" : "grab" }}
+          >
+            <span>{block.icon || "📋"}</span>
+            <span style={{ color: colors.accent }}>{block.title}</span>
+          </div>
         </div>
-      </div>
-      <ul className="task-list">
-        {tasks.map((task) => (
-          <li key={task.id} className="task-item">
-            <input
-              type="checkbox"
-              className="task-check"
-              checked={task.completed}
-              onChange={() => toggleTask(task.id)}
-              disabled={isLocked}
-            />
-            <span
-              className={`task-text ${task.completed ? "done" : ""}`}
-              style={{ color: colors.text }}
-            >
-              {task.text}
-            </span>
-            {!isLocked && (
-              <button
-                className="delete-task"
-                onClick={() => deleteTask(task.id)}
+        <ul className="task-list">
+          {tasks.map((task) => (
+            <li key={task.id} className="task-item">
+              <input
+                type="checkbox"
+                className="task-check"
+                checked={task.completed}
+                onChange={() => toggleTask(task.id)}
+                disabled={isLocked}
+              />
+              <span
+                className={`task-text ${task.completed ? "done" : ""}`}
+                style={{ color: colors.text }}
               >
-                🗑️
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {!isLocked && (
-        <div className="add-task-form">
-          <input
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && addTask()}
-            placeholder="Новая задача..."
-            style={{ color: colors.text }}
-          />
-          <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
-            + Добавить
-          </button>
-        </div>
-      )}
-    </div>
+                {task.text}
+              </span>
+              {!isLocked && (
+                <button
+                  className="delete-task"
+                  onClick={() => deleteTask(task.id)}
+                >
+                  🗑️
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {!isLocked && (
+          <div className="add-task-form">
+            <input
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && addTask()}
+              placeholder="Новая задача..."
+              style={{ color: colors.text }}
+            />
+            <button
+              onClick={addTask}
+              style={{ backgroundColor: colors.accent }}
+            >
+              + Добавить
+            </button>
+          </div>
+        )}
+      </div>
+    </Rnd>
   );
 };
 
@@ -383,18 +420,26 @@ const Workspace = ({
   };
 
   const addNewBlock = () => {
+    // Находим позицию для нового блока (сдвигаем относительно других)
+    const maxX = Math.max(
+      50,
+      ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
+    );
     const newBlock = {
       id: Date.now(),
       title: "Новый блок задач",
       icon: "📝",
       tasks: [],
+      x: maxX + 20,
+      y: 50,
+      width: 380,
+      height: 400,
     };
     saveBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const deleteBlock = (blockId) => {
-    // Разрешаем удалять даже последний блок
     saveBlocks(blocks.filter((b) => b.id !== blockId));
   };
 
@@ -402,6 +447,20 @@ const Workspace = ({
     saveBlocks(
       blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
     );
+  };
+
+  const handleDragStop = (blockId, x, y) => {
+    const block = blocks.find((b) => b.id === blockId);
+    if (block) {
+      updateBlock({ ...block, x, y });
+    }
+  };
+
+  const handleResizeStop = (blockId, width, height, x, y) => {
+    const block = blocks.find((b) => b.id === blockId);
+    if (block) {
+      updateBlock({ ...block, width, height, x, y });
+    }
   };
 
   const handleMenuToggle = () => {
@@ -517,7 +576,10 @@ const Workspace = ({
           {isLocked ? "🔒" : "🔓"}
         </button>
       </div>
-      <div className="dashboard">
+      <div
+        className="free-canvas"
+        style={{ position: "relative", minHeight: "calc(100vh - 80px)" }}
+      >
         {blocks.map((block) => (
           <TaskBlock
             key={block.id}
@@ -526,6 +588,8 @@ const Workspace = ({
             onDelete={deleteBlock}
             colors={colors}
             isLocked={isLocked}
+            onDragStop={handleDragStop}
+            onResizeStop={handleResizeStop}
           />
         ))}
       </div>
@@ -757,7 +821,6 @@ const App = () => {
         setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
         return;
       }
-      // Создаем стол без блоков
       const newDesktop = {
         id: Date.now(),
         name: newName.trim(),
