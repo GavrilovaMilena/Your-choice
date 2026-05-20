@@ -1082,3 +1082,13 @@ body {
     font-size: 0.55rem;
   }
 }
+
+/* Стили для виджета часов */
+.clock-widget {
+  user-select: none;
+}
+
+.clock-widget .card-delete {
+  top: 8px;
+  right: 8px;
+}

@@ -469,18 +469,23 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 // Компонент виджета часов - только электронные, с правильным перетаскиванием
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
+  const [position, setPosition] = useState({ x: block.x, y: block.y });
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({
-    x: block.x || 50,
-    y: block.y || 50,
-  });
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
-  // Синхронизация позиции с блоком при обновлении извне
+  // Загрузка позиции из блока при монтировании и обновлении
   useEffect(() => {
-    setPosition({ x: block.x || 50, y: block.y || 50 });
-  }, [block.x, block.y]);
+    if (block.x !== undefined && block.y !== undefined) {
+      setPosition({ x: block.x, y: block.y });
+    } else {
+      const defaultPos = { x: 50, y: 50 };
+      setPosition(defaultPos);
+      onUpdate({ ...block, x: defaultPos.x, y: defaultPos.y });
+    }
+  }, [block.id]);
 
+  // Обновление времени
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
@@ -488,31 +493,37 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     return () => clearInterval(timer);
   }, []);
 
+  // Обработчики перетаскивания
   const handleMouseDown = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-    dragStartRef.current = {
+    dragOffset.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
     };
+    dragStartPos.current = { x: position.x, y: position.y };
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging || isLocked) return;
-    const newX = e.clientX - dragStartRef.current.x;
-    const newY = e.clientY - dragStartRef.current.y;
-    // Обновляем локальное состояние
+    if (!isDragging) return;
+    const newX = e.clientX - dragOffset.current.x;
+    const newY = e.clientY - dragOffset.current.y;
     setPosition({ x: newX, y: newY });
-    // НЕ вызываем onUpdate здесь, чтобы избежать задержек при перетаскивании
   };
 
   const handleMouseUp = () => {
     if (!isDragging) return;
     setIsDragging(false);
-    // Сохраняем финальную позицию в родительский компонент
-    onUpdate({ ...block, x: position.x, y: position.y });
+    // Сохраняем новую позицию в родительский компонент
+    const newPosition = { x: position.x, y: position.y };
+    if (
+      dragStartPos.current.x !== newPosition.x ||
+      dragStartPos.current.y !== newPosition.y
+    ) {
+      onUpdate({ ...block, x: newPosition.x, y: newPosition.y });
+    }
   };
 
   useEffect(() => {
@@ -524,7 +535,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, position]);
+  }, [isDragging]);
 
   const renderDigitalClock = () => {
     const hours = time.getHours().toString().padStart(2, "0");
@@ -553,14 +564,12 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       className="free-card-container"
       style={{
         position: "absolute",
-        left: position.x + "px",
-        top: position.y + "px",
+        left: (position.x || 50) + "px",
+        top: (position.y || 50) + "px",
         width: "180px",
         height: "140px",
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: isLocked ? "default" : isDragging ? "grabbing" : "grab",
         zIndex: isDragging ? 1000 : 1,
-        minWidth: "180px",
-        minHeight: "140px",
       }}
     >
       <div
@@ -569,9 +578,9 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           backgroundColor: colors.cardBg,
           borderColor: colors.accent + "80",
           padding: "0.8rem",
-          cursor: isLocked ? "default" : "grab",
           width: "100%",
           height: "100%",
+          cursor: isLocked ? "default" : "grab",
         }}
         onMouseDown={handleMouseDown}
       >
@@ -643,7 +652,7 @@ const Workspace = ({
   const addNewClock = () => {
     const maxX = Math.max(
       50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
+      ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
     );
     const newClock = {
       id: Date.now(),
@@ -664,8 +673,8 @@ const Workspace = ({
   };
 
   const updateBlock = (updatedBlock) => {
-    saveBlocks(
-      blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
+    setBlocks((prev) =>
+      prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
     );
   };
 
