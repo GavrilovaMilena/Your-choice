@@ -271,6 +271,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     width: Math.max(420, block.width || 420),
     height: Math.max(420, block.height || 420),
   });
+  const taskListRef = useRef(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -294,6 +295,15 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const deleteTask = (id) => {
     saveTasks(tasks.filter((t) => t.id !== id));
   };
+
+  // Проверяем, нужен ли скролл
+  useEffect(() => {
+    if (taskListRef.current) {
+      const shouldScroll =
+        taskListRef.current.scrollHeight > taskListRef.current.clientHeight;
+      taskListRef.current.style.overflowY = shouldScroll ? "auto" : "hidden";
+    }
+  }, [tasks, size.height]);
 
   // Обработчики перетаскивания
   const handleDragStart = (e) => {
@@ -390,12 +400,18 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           borderColor: colors.accent + "80",
         }}
       >
-        {/* Красный крестик - показываем только если не заблокирован */}
-        {!isLocked && (
-          <button className="card-delete" onClick={() => onDelete(block.id)}>
-            ✕
-          </button>
-        )}
+        {/* Красный крестик - показываем всегда, но убираем возможность удаления при блокировке */}
+        <button
+          className="card-delete"
+          onClick={() => !isLocked && onDelete(block.id)}
+          style={{
+            opacity: isLocked ? 0.3 : 1,
+            cursor: isLocked ? "not-allowed" : "pointer",
+          }}
+          disabled={isLocked}
+        >
+          ✕
+        </button>
         <div
           className="card-header card-drag-handle"
           style={{ cursor: isLocked ? "default" : "grab" }}
@@ -406,7 +422,11 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             <span style={{ color: colors.accent }}>{block.title}</span>
           </div>
         </div>
-        <ul className="task-list" style={{ flex: 1, overflowY: "auto" }}>
+        <ul
+          ref={taskListRef}
+          className="task-list"
+          style={{ flex: 1, overflowY: "auto", minHeight: 0 }}
+        >
           {tasks.map((task) => (
             <li key={task.id} className="task-item">
               <input
@@ -433,23 +453,27 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             </li>
           ))}
         </ul>
-        {!isLocked && (
-          <div className="add-task-form">
-            <input
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addTask()}
-              placeholder="Новая задача..."
-              style={{ color: colors.text }}
-            />
-            <button
-              onClick={addTask}
-              style={{ backgroundColor: colors.accent }}
-            >
-              + Добавить
-            </button>
-          </div>
-        )}
+        {/* Форма добавления задачи - всегда видна, но заблокирована при isLocked */}
+        <div className="add-task-form">
+          <input
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && !isLocked && addTask()}
+            placeholder="Новая задача..."
+            style={{ color: colors.text }}
+            disabled={isLocked}
+          />
+          <button
+            onClick={addTask}
+            style={{
+              backgroundColor: colors.accent,
+              opacity: isLocked ? 0.5 : 1,
+            }}
+            disabled={isLocked}
+          >
+            + Добавить
+          </button>
+        </div>
         {!isLocked && (
           <div className="resize-handle" onMouseDown={handleResizeStart}>
             <div></div>

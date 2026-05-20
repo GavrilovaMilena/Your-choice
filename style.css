@@ -86,7 +86,7 @@ body {
     opacity 1s ease;
 }
 
-/* Главный экран планера - свободное позиционирование */
+/* Главный экран планера */
 .planner-app {
   min-height: 100vh;
   background-color: #f0f8ff;
@@ -95,34 +95,6 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-}
-
-/* Контейнер для свободного позиционирования блоков */
-.free-canvas {
-  position: relative;
-  flex: 1;
-  min-height: calc(100vh - 80px);
-  overflow: visible;
-}
-
-/* Стили для Rnd компонента */
-.rnd-container {
-  position: absolute;
-}
-
-.rnd-container .react-resizable-handle {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  bottom: 0;
-  right: 0;
-  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2IDYiIHN0eWxlPSJiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmYwMCIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSI2cHgiIGhlaWdodD0iNnB4Ij48ZyBvcGFjaXR5PSIwLjMwMiI+PHBhdGggZD0iTSA2IDYgTCAwIDYgTCAwIDQuMiBMIDQgNC4yIEwgNC4yIDQuMiBMIDQuMiAwIEwgNiAwIEwgNiA2IEwgNiA2IFoiIGZpbGw9IiMwMDAwMDAiLz48L2c+PC9zdmc+");
-  background-position: bottom right;
-  padding: 0 3px 3px 0;
-  background-repeat: no-repeat;
-  background-origin: content-box;
-  box-sizing: border-box;
-  cursor: se-resize;
 }
 
 /* Экран рабочих столов - полностью белый фон */
@@ -562,19 +534,27 @@ body {
   font-size: 1.1rem;
 }
 
-/* Стили для карточки внутри Rnd */
+/* Стили для свободного позиционирования */
+.free-canvas {
+  position: relative;
+  min-height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+.free-card-container {
+  position: absolute;
+  min-width: 420px;
+  min-height: 420px;
+}
+
 .free-card {
-  background: white;
-  border-radius: 32px;
-  padding: 1.5rem;
-  padding-top: 2rem;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(135, 206, 235, 0.3);
   display: flex;
   flex-direction: column;
   height: 100%;
   width: 100%;
-  overflow-y: auto;
+  overflow: hidden;
+  border-radius: 32px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.2s;
 }
 
@@ -582,28 +562,49 @@ body {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
+/* Красный крестик - только символ, без круга при наведении */
 .card-delete {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 1.4rem;
+  font-weight: bold;
+  padding: 4px;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
-  background: #e74c3c;
-  color: white;
-  border: none;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+  transition: transform 0.2s;
   z-index: 10;
+  border-radius: 0;
 }
 
 .card-delete:hover {
-  background: #c0392b;
-  transform: scale(1.05);
+  transform: scale(1.15);
+  color: #e74c3c;
+  background: none;
+  border-radius: 0;
+}
+
+.card-delete:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Заголовок для перетаскивания */
+.card-drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+
+.card-drag-handle:active {
+  cursor: grabbing;
 }
 
 .card-header {
@@ -611,7 +612,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.2rem;
-  padding-right: 20px;
+  padding-right: 40px;
 }
 
 .card-title {
@@ -659,14 +660,21 @@ body {
   transform: scale(1.05);
 }
 
-.task-list {
-  list-style: none;
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 8px;
-  flex: 1;
+.task-check:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
+/* Список задач - скролл только когда нужно */
+.task-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 0;
+  min-height: 0;
+}
+
+/* Скрываем скролл когда он не нужен */
 .task-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -727,10 +735,11 @@ body {
   opacity: 1;
 }
 
+/* Форма добавления задачи - прилипает к низу */
 .add-task-form {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid #e9ecef;
   flex-shrink: 0;
@@ -750,6 +759,11 @@ body {
   border-color: #87ceeb;
 }
 
+.add-task-form input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .add-task-form button {
   background: #87ceeb;
   border: none;
@@ -763,8 +777,35 @@ body {
   flex-shrink: 0;
 }
 
-.add-task-form button:hover {
+.add-task-form button:hover:not(:disabled) {
   transform: scale(1.02);
+}
+
+.add-task-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Уголок для изменения размера */
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: se-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.resize-handle div {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #999;
+  border-bottom: 2px solid #999;
 }
 
 /* Модальное окно кастомизации */
@@ -997,9 +1038,9 @@ body {
   .card-title {
     font-size: 1.2rem;
   }
-  .free-card {
-    padding: 1rem;
-    padding-top: 1.5rem;
+  .free-card-container {
+    min-width: 320px;
+    min-height: 320px;
   }
   .floating-menu-btn {
     width: 44px;
@@ -1013,100 +1054,4 @@ body {
     left: 20px;
     min-width: 180px;
   }
-}
-/* Стили для свободного позиционирования */
-.free-canvas {
-  position: relative;
-  min-height: calc(100vh - 80px);
-  overflow: hidden;
-}
-
-.free-card-container {
-  position: absolute;
-  min-width: 420px;
-  min-height: 420px;
-}
-
-.free-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-/* Красный крестик без круга */
-.card-delete {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  color: #e74c3c;
-  cursor: pointer;
-  font-size: 1.3rem;
-  font-weight: bold;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
-  z-index: 10;
-}
-
-.card-delete:hover {
-  transform: scale(1.1);
-  color: #c0392b;
-}
-
-/* Заголовок для перетаскивания */
-.card-drag-handle {
-  cursor: grab;
-  user-select: none;
-}
-
-.card-drag-handle:active {
-  cursor: grabbing;
-}
-
-/* Список задач с прокруткой */
-.task-list {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 8px;
-  margin-bottom: 0;
-}
-
-/* Форма добавления задачи - прилипает к низу */
-.add-task-form {
-  display: flex;
-  gap: 10px;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid #e9ecef;
-  flex-shrink: 0;
-}
-
-/* Уголок для изменения размера */
-.resize-handle {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 16px;
-  height: 16px;
-  cursor: se-resize;
-  background: transparent;
-  z-index: 10;
-}
-
-.resize-handle div {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid #999;
-  border-bottom: 2px solid #999;
 }
