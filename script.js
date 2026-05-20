@@ -466,10 +466,9 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент виджета часов - как обычная карточка
+// Компонент виджета часов - только электронные, с правильным перетаскиванием
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
-  const [clockType, setClockType] = useState(block.clockType || "analog");
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({
     x: block.x || 50,
@@ -486,17 +485,13 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   const savePosition = (newPosition) => {
     setPosition(newPosition);
-    onUpdate({ ...block, x: newPosition.x, y: newPosition.y, clockType });
-  };
-
-  const saveClockType = (type) => {
-    setClockType(type);
-    onUpdate({ ...block, clockType: type, x: position.x, y: position.y });
+    onUpdate({ ...block, x: newPosition.x, y: newPosition.y });
   };
 
   const handleDragStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX - position.x,
@@ -536,61 +531,6 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     };
   }, [isDragging]);
 
-  const renderAnalogClock = () => {
-    const hours = time.getHours() % 12;
-    const minutes = time.getMinutes();
-    const seconds = time.getSeconds();
-
-    const hourDeg = hours * 30 + minutes * 0.5;
-    const minuteDeg = minutes * 6 + seconds * 0.1;
-    const secondDeg = seconds * 6;
-
-    const hourMarks = [];
-    for (let i = 1; i <= 12; i++) {
-      const angle = (i * 30 * Math.PI) / 180;
-      const radius = 70;
-      const x = 50 + radius * Math.sin(angle);
-      const y = 50 - radius * Math.cos(angle);
-      hourMarks.push(
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: `${x}%`,
-            top: `${y}%`,
-            transform: "translate(-50%, -50%)",
-            fontSize: "10px",
-            fontWeight: "bold",
-            color: "#333",
-          }}
-        >
-          {i}
-        </div>,
-      );
-    }
-
-    return (
-      <div className="analog-clock">
-        <div className="clock-face">
-          {hourMarks}
-          <div
-            className="hour-hand"
-            style={{ transform: `translateX(-50%) rotate(${hourDeg}deg)` }}
-          ></div>
-          <div
-            className="minute-hand"
-            style={{ transform: `translateX(-50%) rotate(${minuteDeg}deg)` }}
-          ></div>
-          <div
-            className="second-hand"
-            style={{ transform: `translateX(-50%) rotate(${secondDeg}deg)` }}
-          ></div>
-          <div className="clock-center"></div>
-        </div>
-      </div>
-    );
-  };
-
   const renderDigitalClock = () => {
     const hours = time.getHours().toString().padStart(2, "0");
     const minutes = time.getMinutes().toString().padStart(2, "0");
@@ -603,10 +543,12 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
     return (
       <div className="digital-clock">
-        <div className="digital-time">
+        <div className="digital-time" style={{ color: colors.text }}>
           {hours}:{minutes}:{seconds}
         </div>
-        <div className="digital-date">{date}</div>
+        <div className="digital-date" style={{ color: colors.text }}>
+          {date}
+        </div>
       </div>
     );
   };
@@ -618,57 +560,36 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         position: "absolute",
         left: position.x + "px",
         top: position.y + "px",
-        width: "160px",
-        height: "160px",
+        width: "180px",
+        height: "140px",
         cursor: isDragging ? "grabbing" : "default",
         zIndex: isDragging ? 1000 : 1,
-        minWidth: "160px",
-        minHeight: "160px",
+        minWidth: "180px",
+        minHeight: "140px",
       }}
     >
       <div
-        className="free-card clock-widget"
+        className="free-card clock-widget card-drag-handle"
         style={{
           backgroundColor: colors.cardBg,
           borderColor: colors.accent + "80",
           padding: "0.8rem",
+          cursor: isLocked ? "default" : "grab",
         }}
+        onMouseDown={handleDragStart}
       >
         {!isLocked && (
-          <button className="card-delete" onClick={() => onDelete(block.id)}>
+          <button
+            className="card-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(block.id);
+            }}
+          >
             ✕
           </button>
         )}
-        {!isLocked && (
-          <div className="clock-selector">
-            <button
-              className={`clock-type-btn ${clockType === "analog" ? "active" : ""}`}
-              onClick={() => saveClockType("analog")}
-            >
-              🕐
-            </button>
-            <button
-              className={`clock-type-btn ${clockType === "digital" ? "active" : ""}`}
-              onClick={() => saveClockType("digital")}
-            >
-              📟
-            </button>
-          </div>
-        )}
-        <div
-          className="card-drag-handle"
-          style={{
-            cursor: isLocked ? "default" : "grab",
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onMouseDown={handleDragStart}
-        >
-          {clockType === "analog" ? renderAnalogClock() : renderDigitalClock()}
-        </div>
+        {renderDigitalClock()}
       </div>
     </div>
   );
@@ -731,11 +652,11 @@ const Workspace = ({
       id: Date.now(),
       type: "clock",
       title: "Часы",
-      clockType: "analog",
+      clockType: "digital",
       x: maxX + 20,
       y: 50,
-      width: 160,
-      height: 160,
+      width: 180,
+      height: 140,
     };
     saveBlocks([...blocks, newClock]);
     setIsMenuOpen(false);
