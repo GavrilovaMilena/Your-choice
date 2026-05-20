@@ -488,7 +488,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     onUpdate({ ...block, x: newPosition.x, y: newPosition.y });
   };
 
-  const handleDragStart = (e) => {
+  const handleMouseDown = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
@@ -499,32 +499,24 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     };
   };
 
-  const handleDragMove = (e) => {
+  const handleMouseMove = (e) => {
     if (!isDragging || isLocked) return;
     const newX = e.clientX - dragStartRef.current.x;
     const newY = e.clientY - dragStartRef.current.y;
     setPosition({ x: newX, y: newY });
   };
 
-  const handleDragEnd = () => {
+  const handleMouseUp = () => {
     if (!isDragging) return;
     setIsDragging(false);
     savePosition(position);
   };
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      handleDragMove(e);
-    };
-    const handleMouseUp = () => {
-      handleDragEnd();
-    };
-
     if (isDragging) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     }
-
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
@@ -562,21 +554,23 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         top: position.y + "px",
         width: "180px",
         height: "140px",
-        cursor: isDragging ? "grabbing" : "default",
+        cursor: isDragging ? "grabbing" : "grab",
         zIndex: isDragging ? 1000 : 1,
         minWidth: "180px",
         minHeight: "140px",
       }}
     >
       <div
-        className="free-card clock-widget card-drag-handle"
+        className="free-card clock-widget"
         style={{
           backgroundColor: colors.cardBg,
           borderColor: colors.accent + "80",
           padding: "0.8rem",
           cursor: isLocked ? "default" : "grab",
+          width: "100%",
+          height: "100%",
         }}
-        onMouseDown={handleDragStart}
+        onMouseDown={handleMouseDown}
       >
         {!isLocked && (
           <button
