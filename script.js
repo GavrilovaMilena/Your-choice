@@ -466,7 +466,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент виджета часов (уменьшенная версия)
+// Компонент виджета часов - как обычная карточка
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
   const [clockType, setClockType] = useState(block.clockType || "analog");
@@ -548,7 +548,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     const hourMarks = [];
     for (let i = 1; i <= 12; i++) {
       const angle = (i * 30 * Math.PI) / 180;
-      const radius = 80;
+      const radius = 70;
       const x = 50 + radius * Math.sin(angle);
       const y = 50 - radius * Math.cos(angle);
       hourMarks.push(
@@ -559,7 +559,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             left: `${x}%`,
             top: `${y}%`,
             transform: "translate(-50%, -50%)",
-            fontSize: "14px",
+            fontSize: "10px",
             fontWeight: "bold",
             color: "#333",
           }}
@@ -596,10 +596,9 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     const minutes = time.getMinutes().toString().padStart(2, "0");
     const seconds = time.getSeconds().toString().padStart(2, "0");
     const date = time.toLocaleDateString("ru-RU", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
+      weekday: "short",
       day: "numeric",
+      month: "short",
     });
 
     return (
@@ -619,26 +618,24 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         position: "absolute",
         left: position.x + "px",
         top: position.y + "px",
-        width: "180px",
-        height: "180px",
+        width: "160px",
+        height: "160px",
         cursor: isDragging ? "grabbing" : "default",
         zIndex: isDragging ? 1000 : 1,
+        minWidth: "160px",
+        minHeight: "160px",
       }}
     >
       <div
         className="free-card clock-widget"
         style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          position: "relative",
+          backgroundColor: colors.cardBg,
+          borderColor: colors.accent + "80",
           padding: "0.8rem",
         }}
       >
         {!isLocked && (
-          <button
-            className="card-delete"
-            onClick={() => onDelete(block.id)}
-            style={{ color: "white" }}
-          >
+          <button className="card-delete" onClick={() => onDelete(block.id)}>
             ✕
           </button>
         )}
@@ -737,8 +734,8 @@ const Workspace = ({
       clockType: "analog",
       x: maxX + 20,
       y: 50,
-      width: 180,
-      height: 180,
+      width: 160,
+      height: 160,
     };
     saveBlocks([...blocks, newClock]);
     setIsMenuOpen(false);
