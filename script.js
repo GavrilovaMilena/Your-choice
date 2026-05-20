@@ -172,6 +172,100 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
   );
 };
 
+// Модальное окно кастомизации (теперь для конкретного стола)
+const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
+  const [localColors, setLocalColors] = useState(colors);
+
+  useEffect(() => {
+    setLocalColors(colors);
+  }, [colors, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    onSave(localColors);
+    onClose();
+  };
+
+  const handleReset = () => {
+    const defaultColors = {
+      bgPage: "#f0f8ff",
+      text: "#1e2a3e",
+      cardBg: "#ffffff",
+      accent: "#87CEEB",
+    };
+    setLocalColors(defaultColors);
+    onSave(defaultColors);
+  };
+
+  return (
+    <div className="modal" style={{ display: "block" }}>
+      <div className="modal-content">
+        <div className="modal-header">
+          <h2>Кастомизация стола</h2>
+          <button className="close-modal" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="customize-section">
+            <label>🎨 Фон страницы</label>
+            <input
+              type="color"
+              value={localColors.bgPage}
+              onChange={(e) =>
+                setLocalColors({ ...localColors, bgPage: e.target.value })
+              }
+              className="color-circle"
+            />
+          </div>
+          <div className="customize-section">
+            <label>📝 Цвет текста</label>
+            <input
+              type="color"
+              value={localColors.text}
+              onChange={(e) =>
+                setLocalColors({ ...localColors, text: e.target.value })
+              }
+              className="color-circle"
+            />
+          </div>
+          <div className="customize-section">
+            <label>📦 Фон блоков</label>
+            <input
+              type="color"
+              value={localColors.cardBg}
+              onChange={(e) =>
+                setLocalColors({ ...localColors, cardBg: e.target.value })
+              }
+              className="color-circle"
+            />
+          </div>
+          <div className="customize-section">
+            <label>✨ Акцент</label>
+            <input
+              type="color"
+              value={localColors.accent}
+              onChange={(e) =>
+                setLocalColors({ ...localColors, accent: e.target.value })
+              }
+              className="color-circle"
+            />
+          </div>
+          <div className="modal-buttons">
+            <button className="modal-reset-btn" onClick={handleReset}>
+              Сбросить
+            </button>
+            <button className="modal-save-btn" onClick={handleSave}>
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Компонент блока (карточки) задач
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
@@ -432,54 +526,52 @@ const DesktopsScreen = ({
             </p>
           )}
         </div>
-        {desktops.map((desktop) => (
-          <div
-            key={desktop.id}
-            className="desktop-card"
-            onClick={() => onSelectDesktop(desktop.id)}
-          >
-            <button
-              className="desktop-delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteDesktop(desktop.id, desktop.name);
-              }}
-            >
-              🗑️
-            </button>
+        {desktops.map((desktop) => {
+          const totalTasks =
+            desktop.blocks?.reduce(
+              (sum, block) => sum + (block.tasks?.length || 0),
+              0,
+            ) || 0;
+          const completedTasks =
+            desktop.blocks?.reduce(
+              (sum, block) =>
+                sum + (block.tasks?.filter((t) => t.completed).length || 0),
+              0,
+            ) || 0;
+          return (
             <div
-              className="desktop-title"
-              onClick={(e) => handleTitleClick(desktop, e)}
+              key={desktop.id}
+              className="desktop-card"
+              onClick={() => onSelectDesktop(desktop.id)}
             >
-              📌 {desktop.name}
-            </div>
-            <div className="desktop-stats">
-              <span>
-                ✅{" "}
-                {desktop.blocks?.reduce(
-                  (sum, block) =>
-                    sum + (block.tasks?.filter((t) => t.completed).length || 0),
-                  0,
-                ) || 0}{" "}
-                выполнено
-              </span>
-              <span>
-                📝{" "}
-                {desktop.blocks?.reduce(
-                  (sum, block) => sum + (block.tasks?.length || 0),
-                  0,
-                ) || 0}{" "}
-                всего
-              </span>
-            </div>
-            {showTooltipId === desktop.id && (
-              <div className="rename-tooltip">
-                ✏️ Кликни по названию стола для изменения
-                <div className="tooltip-arrow">👇</div>
+              <button
+                className="desktop-delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteDesktop(desktop.id, desktop.name);
+                }}
+              >
+                🗑️
+              </button>
+              <div
+                className="desktop-title"
+                onClick={(e) => handleTitleClick(desktop, e)}
+              >
+                📌 {desktop.name}
               </div>
-            )}
-          </div>
-        ))}
+              <div className="desktop-stats">
+                <span>✅ {completedTasks} выполнено</span>
+                <span>📝 {totalTasks} всего</span>
+              </div>
+              {showTooltipId === desktop.id && (
+                <div className="rename-tooltip">
+                  ✏️ Кликни по названию стола для изменения
+                  <div className="tooltip-arrow">👇</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -514,6 +606,7 @@ const App = () => {
   };
   const isLocked = currentDesktop?.isLocked || false;
 
+  // Загрузка данных
   useEffect(() => {
     const savedDesktops = localStorage.getItem("skyPlanner_desktops");
     const savedCurrentDesktop = localStorage.getItem(
@@ -557,6 +650,7 @@ const App = () => {
     }
   }, []);
 
+  // Сохранение данных
   useEffect(() => {
     localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
     localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
@@ -680,6 +774,12 @@ const App = () => {
           setRenameDialog({ isOpen: true, desktopId: id, currentName })
         }
         isMaxDesktops={isMaxDesktops}
+      />
+      <CustomizeModal
+        isOpen={showCustomize}
+        onClose={() => setShowCustomize(false)}
+        colors={currentColors}
+        onSave={updateCurrentDesktopColors}
       />
       <RenameDialog
         isOpen={renameDialog.isOpen}
