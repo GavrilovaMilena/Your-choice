@@ -476,17 +476,17 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   });
   const dragStartRef = useRef({ x: 0, y: 0 });
 
+  // Синхронизация позиции с блоком при обновлении извне
+  useEffect(() => {
+    setPosition({ x: block.x || 50, y: block.y || 50 });
+  }, [block.x, block.y]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const savePosition = (newPosition) => {
-    setPosition(newPosition);
-    onUpdate({ ...block, x: newPosition.x, y: newPosition.y });
-  };
 
   const handleMouseDown = (e) => {
     if (isLocked) return;
@@ -503,13 +503,16 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (!isDragging || isLocked) return;
     const newX = e.clientX - dragStartRef.current.x;
     const newY = e.clientY - dragStartRef.current.y;
+    // Обновляем локальное состояние
     setPosition({ x: newX, y: newY });
+    // НЕ вызываем onUpdate здесь, чтобы избежать задержек при перетаскивании
   };
 
   const handleMouseUp = () => {
     if (!isDragging) return;
     setIsDragging(false);
-    savePosition(position);
+    // Сохраняем финальную позицию в родительский компонент
+    onUpdate({ ...block, x: position.x, y: position.y });
   };
 
   useEffect(() => {
@@ -521,7 +524,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, position]);
 
   const renderDigitalClock = () => {
     const hours = time.getHours().toString().padStart(2, "0");
