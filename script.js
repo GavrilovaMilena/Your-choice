@@ -452,7 +452,7 @@ const Workspace = ({
         >
           <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
           <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
-            Нет блоков задач
+            Пока тут пусто🥺
           </h3>
           <p
             style={{ color: colors.text, opacity: 0.7, marginBottom: "1.5rem" }}
