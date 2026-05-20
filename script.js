@@ -400,18 +400,12 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           borderColor: colors.accent + "80",
         }}
       >
-        {/* Красный крестик - показываем всегда, но убираем возможность удаления при блокировке */}
-        <button
-          className="card-delete"
-          onClick={() => !isLocked && onDelete(block.id)}
-          style={{
-            opacity: isLocked ? 0.3 : 1,
-            cursor: isLocked ? "not-allowed" : "pointer",
-          }}
-          disabled={isLocked}
-        >
-          ✕
-        </button>
+        {/* Красный крестик - НЕ показываем когда экран заблокирован */}
+        {!isLocked && (
+          <button className="card-delete" onClick={() => onDelete(block.id)}>
+            ✕
+          </button>
+        )}
         <div
           className="card-header card-drag-handle"
           style={{ cursor: isLocked ? "default" : "grab" }}
@@ -453,24 +447,16 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             </li>
           ))}
         </ul>
-        {/* Форма добавления задачи - всегда видна, но заблокирована при isLocked */}
+        {/* Форма добавления задачи - всегда активна, даже при заблокированном экране */}
         <div className="add-task-form">
           <input
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && !isLocked && addTask()}
+            onKeyPress={(e) => e.key === "Enter" && addTask()}
             placeholder="Новая задача..."
             style={{ color: colors.text }}
-            disabled={isLocked}
           />
-          <button
-            onClick={addTask}
-            style={{
-              backgroundColor: colors.accent,
-              opacity: isLocked ? 0.5 : 1,
-            }}
-            disabled={isLocked}
-          >
+          <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
             + Добавить
           </button>
         </div>
@@ -1026,4 +1012,8 @@ const App = () => {
 };
 
 const rootElement = document.getElementById("root");
-ReactDOM.createRoot(rootElement).render(React.createElement(App));
+if (ReactDOM.createRoot) {
+  ReactDOM.createRoot(rootElement).render(React.createElement(App));
+} else {
+  ReactDOM.render(React.createElement(App), rootElement);
+}

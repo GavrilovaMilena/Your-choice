@@ -556,6 +556,8 @@ body {
   border-radius: 32px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.2s;
+  padding: 1.5rem;
+  padding-top: 1rem;
 }
 
 .free-card:hover {
@@ -565,8 +567,8 @@ body {
 /* Красный крестик - только символ, без круга при наведении */
 .card-delete {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
   background: none;
   border: none;
   color: #e74c3c;
@@ -591,12 +593,6 @@ body {
   border-radius: 0;
 }
 
-.card-delete:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  transform: none;
-}
-
 /* Заголовок для перетаскивания */
 .card-drag-handle {
   cursor: grab;
@@ -611,8 +607,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.2rem;
-  padding-right: 40px;
+  margin-bottom: 1rem;
+  padding-right: 20px;
 }
 
 .card-title {
@@ -759,11 +755,6 @@ body {
   border-color: #87ceeb;
 }
 
-.add-task-form input:disabled {
-  background: #f5f5f5;
-  cursor: not-allowed;
-}
-
 .add-task-form button {
   background: #87ceeb;
   border: none;
@@ -777,13 +768,8 @@ body {
   flex-shrink: 0;
 }
 
-.add-task-form button:hover:not(:disabled) {
+.add-task-form button:hover {
   transform: scale(1.02);
-}
-
-.add-task-form button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Уголок для изменения размера */
@@ -1053,5 +1039,9 @@ body {
     bottom: 80px;
     left: 20px;
     min-width: 180px;
+  }
+  .free-card {
+    padding: 1rem;
+    padding-top: 0.8rem;
   }
 }
