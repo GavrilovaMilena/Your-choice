@@ -109,7 +109,6 @@ body {
   margin-bottom: 3rem;
 }
 
-/* Заголовок и подзаголовок небесно-голубые */
 .desktops-header h1 {
   font-size: 3rem;
   color: #87ceeb;
@@ -132,7 +131,6 @@ body {
   gap: 2rem;
 }
 
-/* Фиксированная высота для всех карточек */
 .desktop-card {
   background: white;
   border-radius: 20px;
@@ -153,7 +151,6 @@ body {
   border-color: #87ceeb;
 }
 
-/* Карточка добавления имеет такую же высоту */
 .add-desktop-card {
   background: #fafafa;
   border: 2px dashed #87ceeb;
@@ -169,7 +166,6 @@ body {
   border-color: #5ba3c9;
 }
 
-/* Стиль для карточки добавления, когда достигнут лимит */
 .add-desktop-card.disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -343,10 +339,6 @@ body {
   color: white;
 }
 
-.dialog-btn-confirm:hover {
-  background: #6bb5d4;
-}
-
 .dialog-btn-delete {
   background: #e74c3c;
   color: white;
@@ -426,7 +418,6 @@ body {
   padding: 0 1rem;
 }
 
-/* Кнопка "Назад к столам" - без обводки */
 .back-btn {
   background: #87ceeb;
   border: none;
@@ -447,7 +438,6 @@ body {
   transform: scale(1.02);
 }
 
-/* Кнопка блокировки - без фона и обводки */
 .lock-btn {
   width: 36px;
   height: 36px;
@@ -469,7 +459,6 @@ body {
   color: #2c3e50;
 }
 
-/* Плавающая черная кнопка в левом нижнем углу - уменьшена */
 .floating-menu-btn {
   position: fixed;
   bottom: 30px;
@@ -495,7 +484,6 @@ body {
   background-color: #333;
 }
 
-/* Выпадающее меню */
 .floating-menu {
   position: fixed;
   bottom: 90px;
@@ -544,33 +532,35 @@ body {
   font-size: 1.1rem;
 }
 
-/* Контейнер дашборда задач - на всю ширину */
+/* Контейнер дашборда задач */
 .dashboard {
   max-width: 100%;
   margin: 0;
   padding: 0 1rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 1.5rem;
   flex: 1;
 }
 
-/* Карточка задач */
+/* Карточка задач - исправлено позиционирование */
 .card {
   background: white;
   border-radius: 32px;
   padding: 1.5rem;
+  padding-top: 2rem;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(135, 206, 235, 0.3);
   position: relative;
   transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 
 .card:hover .card-delete {
   opacity: 1;
 }
 
-/* Красный крестик для удаления блока */
 .card-delete {
   position: absolute;
   top: 12px;
@@ -585,7 +575,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 0.9rem;
   opacity: 0;
   transition: all 0.2s;
   z-index: 10;
@@ -601,7 +591,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.2rem;
-  padding-right: 24px;
+  padding-right: 20px;
 }
 
 .card-title {
@@ -612,11 +602,50 @@ body {
   gap: 0.6rem;
 }
 
+/* Стилизованные чекбоксы */
+.task-check {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  transition: all 0.2s;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.task-check:checked {
+  background: #87ceeb;
+  border-color: #87ceeb;
+  position: relative;
+}
+
+.task-check:checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.task-check:hover {
+  border-color: #87ceeb;
+  transform: scale(1.05);
+}
+
 .task-list {
   list-style: none;
   max-height: 400px;
   overflow-y: auto;
   padding-right: 8px;
+  flex: 1;
 }
 
 .task-list::-webkit-scrollbar {
@@ -637,25 +666,23 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 8px;
+  padding: 12px 8px;
   border-bottom: 1px solid #e9ecef;
   transition: background 0.2s;
+  width: 100%;
 }
 
 .task-item:hover {
   background: rgba(135, 206, 235, 0.05);
 }
 
-.task-check {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-}
-
+/* Увеличенный размер текста задачи */
 .task-text {
   flex: 1;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 500;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .task-text.done {
@@ -670,6 +697,12 @@ body {
   cursor: pointer;
   opacity: 0.5;
   transition: opacity 0.2s;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .delete-task:hover {
@@ -682,14 +715,15 @@ body {
   margin-top: 20px;
   padding-top: 12px;
   border-top: 1px solid #e9ecef;
+  flex-shrink: 0;
 }
 
 .add-task-form input {
   flex: 1;
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-radius: 60px;
   border: 1px solid #ddd;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -702,12 +736,13 @@ body {
   background: #87ceeb;
   border: none;
   border-radius: 40px;
-  padding: 0 20px;
+  padding: 0 24px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s;
   color: white;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
 .add-task-form button:hover {
@@ -946,6 +981,7 @@ body {
   }
   .card {
     padding: 1rem;
+    padding-top: 1.5rem;
   }
   .dashboard {
     grid-template-columns: 1fr;

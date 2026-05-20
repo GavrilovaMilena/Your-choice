@@ -172,7 +172,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
   );
 };
 
-// Модальное окно кастомизации (теперь для конкретного стола)
+// Модальное окно кастомизации
 const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   const [localColors, setLocalColors] = useState(colors);
 
@@ -311,12 +311,13 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       </div>
       <ul className="task-list">
         {tasks.map((task) => (
-          <li key={task.id} className="task-item" draggable={!isLocked}>
+          <li key={task.id} className="task-item">
             <input
               type="checkbox"
+              className="task-check"
               checked={task.completed}
               onChange={() => toggleTask(task.id)}
-              style={{ accentColor: colors.accent }}
+              disabled={isLocked}
             />
             <span
               className={`task-text ${task.completed ? "done" : ""}`}
@@ -324,24 +325,31 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             >
               {task.text}
             </span>
-            <button className="delete-task" onClick={() => deleteTask(task.id)}>
-              🗑️
-            </button>
+            {!isLocked && (
+              <button
+                className="delete-task"
+                onClick={() => deleteTask(task.id)}
+              >
+                🗑️
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      <div className="add-task-form">
-        <input
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && addTask()}
-          placeholder="Новая задача..."
-          style={{ color: colors.text }}
-        />
-        <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
-          + Добавить
-        </button>
-      </div>
+      {!isLocked && (
+        <div className="add-task-form">
+          <input
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && addTask()}
+            placeholder="Новая задача..."
+            style={{ color: colors.text }}
+          />
+          <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
+            + Добавить
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -386,10 +394,7 @@ const Workspace = ({
   };
 
   const deleteBlock = (blockId) => {
-    if (blocks.length === 1) {
-      alert("Нельзя удалить последний блок");
-      return;
-    }
+    // Разрешаем удалять даже последний блок
     saveBlocks(blocks.filter((b) => b.id !== blockId));
   };
 
@@ -421,6 +426,86 @@ const Workspace = ({
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [isMenuOpen]);
+
+  // Если блоков нет, показываем сообщение
+  if (blocks.length === 0) {
+    return (
+      <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
+        <div className="control-panel">
+          <button className="back-btn" onClick={onBack}>
+            ← Назад к столам
+          </button>
+          <button className="lock-btn" onClick={onToggleLock}>
+            {isLocked ? "🔒" : "🔓"}
+          </button>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "calc(100vh - 120px)",
+            textAlign: "center",
+            padding: "2rem",
+          }}
+        >
+          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
+          <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
+            Нет блоков задач
+          </h3>
+          <p
+            style={{ color: colors.text, opacity: 0.7, marginBottom: "1.5rem" }}
+          >
+            Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
+          </p>
+          <button
+            onClick={addNewBlock}
+            style={{
+              backgroundColor: colors.accent,
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: "40px",
+              fontSize: "1rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span>➕</span> Добавить первый блок
+          </button>
+        </div>
+
+        <button className="floating-menu-btn" onClick={handleMenuToggle}>
+          +
+        </button>
+
+        {isMenuOpen && (
+          <div className="floating-menu">
+            <button className="menu-item" onClick={addNewBlock}>
+              <span>📦</span>
+              <span>Добавить блок задач</span>
+            </button>
+            <button className="menu-item" onClick={handleOpenCustomize}>
+              <span>🎨</span>
+              <span>Настройка цветов</span>
+            </button>
+          </div>
+        )}
+
+        {showTips && (
+          <TipsNotification
+            onClose={() => setShowTips(false)}
+            onDontShowAgain={() =>
+              localStorage.setItem("skyPlanner_dontShowTips", "true")
+            }
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
@@ -606,7 +691,6 @@ const App = () => {
   };
   const isLocked = currentDesktop?.isLocked || false;
 
-  // Загрузка данных
   useEffect(() => {
     const savedDesktops = localStorage.getItem("skyPlanner_desktops");
     const savedCurrentDesktop = localStorage.getItem(
@@ -617,14 +701,7 @@ const App = () => {
       const parsed = JSON.parse(savedDesktops);
       const desktopsWithDefaults = parsed.map((d) => ({
         ...d,
-        blocks: d.blocks || [
-          {
-            id: Date.now(),
-            title: "Мои задачи",
-            icon: "📋",
-            tasks: d.tasks || [],
-          },
-        ],
+        blocks: d.blocks || [],
         colors: d.colors || {
           bgPage: "#f0f8ff",
           text: "#1e2a3e",
@@ -650,7 +727,6 @@ const App = () => {
     }
   }, []);
 
-  // Сохранение данных
   useEffect(() => {
     localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
     localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
@@ -681,12 +757,11 @@ const App = () => {
         setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
         return;
       }
+      // Создаем стол без блоков
       const newDesktop = {
         id: Date.now(),
         name: newName.trim(),
-        blocks: [
-          { id: Date.now(), title: "Мои задачи", icon: "📋", tasks: [] },
-        ],
+        blocks: [],
         colors: {
           bgPage: "#f0f8ff",
           text: "#1e2a3e",
