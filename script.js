@@ -143,6 +143,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">📏 Изменяй размер блоков за уголок</div>
         <div className="tip-item">🎨 Настрой цвета через кнопку 🎨 в меню</div>
         <div className="tip-item">➕ Добавляй новые блоки через кнопку +</div>
+        <div className="tip-item">🕐 Добавляй часы через меню</div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -400,7 +401,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           borderColor: colors.accent + "80",
         }}
       >
-        {/* Красный крестик - НЕ показываем когда экран заблокирован */}
         {!isLocked && (
           <button className="card-delete" onClick={() => onDelete(block.id)}>
             ✕
@@ -466,6 +466,216 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
+// Компонент виджета часов
+const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+  const [time, setTime] = useState(new Date());
+  const [clockType, setClockType] = useState(block.clockType || "analog");
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({
+    x: block.x || 50,
+    y: block.y || 50,
+  });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const savePosition = (newPosition) => {
+    setPosition(newPosition);
+    onUpdate({ ...block, x: newPosition.x, y: newPosition.y, clockType });
+  };
+
+  const saveClockType = (type) => {
+    setClockType(type);
+    onUpdate({ ...block, clockType: type, x: position.x, y: position.y });
+  };
+
+  const handleDragStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging || isLocked) return;
+    const newX = e.clientX - dragStartRef.current.x;
+    const newY = e.clientY - dragStartRef.current.y;
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    savePosition(position);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      handleDragMove(e);
+    };
+    const handleMouseUp = () => {
+      handleDragEnd();
+    };
+
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const renderAnalogClock = () => {
+    const hours = time.getHours() % 12;
+    const minutes = time.getMinutes();
+    const seconds = time.getSeconds();
+
+    const hourDeg = hours * 30 + minutes * 0.5;
+    const minuteDeg = minutes * 6 + seconds * 0.1;
+    const secondDeg = seconds * 6;
+
+    const hourMarks = [];
+    for (let i = 1; i <= 12; i++) {
+      const angle = (i * 30 * Math.PI) / 180;
+      const radius = 80;
+      const x = 50 + radius * Math.sin(angle);
+      const y = 50 - radius * Math.cos(angle);
+      hourMarks.push(
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${x}%`,
+            top: `${y}%`,
+            transform: "translate(-50%, -50%)",
+            fontSize: "16px",
+            fontWeight: "bold",
+            color: "#333",
+          }}
+        >
+          {i}
+        </div>,
+      );
+    }
+
+    return (
+      <div className="analog-clock">
+        <div className="clock-face">
+          {hourMarks}
+          <div
+            className="hour-hand"
+            style={{ transform: `translateX(-50%) rotate(${hourDeg}deg)` }}
+          ></div>
+          <div
+            className="minute-hand"
+            style={{ transform: `translateX(-50%) rotate(${minuteDeg}deg)` }}
+          ></div>
+          <div
+            className="second-hand"
+            style={{ transform: `translateX(-50%) rotate(${secondDeg}deg)` }}
+          ></div>
+          <div className="clock-center"></div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDigitalClock = () => {
+    const hours = time.getHours().toString().padStart(2, "0");
+    const minutes = time.getMinutes().toString().padStart(2, "0");
+    const seconds = time.getSeconds().toString().padStart(2, "0");
+    const date = time.toLocaleDateString("ru-RU", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    return (
+      <div className="digital-clock">
+        <div className="digital-time">
+          {hours}:{minutes}:{seconds}
+        </div>
+        <div className="digital-date">{date}</div>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className="free-card-container"
+      style={{
+        position: "absolute",
+        left: position.x + "px",
+        top: position.y + "px",
+        width: "320px",
+        height: "320px",
+        cursor: isDragging ? "grabbing" : "default",
+        zIndex: isDragging ? 1000 : 1,
+      }}
+    >
+      <div
+        className="free-card clock-widget"
+        style={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          position: "relative",
+        }}
+      >
+        {!isLocked && (
+          <button
+            className="card-delete"
+            onClick={() => onDelete(block.id)}
+            style={{ color: "white" }}
+          >
+            ✕
+          </button>
+        )}
+        {!isLocked && (
+          <div className="clock-selector">
+            <button
+              className={`clock-type-btn ${clockType === "analog" ? "active" : ""}`}
+              onClick={() => saveClockType("analog")}
+            >
+              🕐
+            </button>
+            <button
+              className={`clock-type-btn ${clockType === "digital" ? "active" : ""}`}
+              onClick={() => saveClockType("digital")}
+            >
+              📟
+            </button>
+          </div>
+        )}
+        <div
+          className="card-drag-handle"
+          style={{
+            cursor: isLocked ? "default" : "grab",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseDown={handleDragStart}
+        >
+          {clockType === "analog" ? renderAnalogClock() : renderDigitalClock()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Компонент рабочего стола
 const Workspace = ({
   desktop,
@@ -501,6 +711,7 @@ const Workspace = ({
     );
     const newBlock = {
       id: Date.now(),
+      type: "task",
       title: "Новый блок задач",
       icon: "📝",
       tasks: [],
@@ -510,6 +721,25 @@ const Workspace = ({
       height: 420,
     };
     saveBlocks([...blocks, newBlock]);
+    setIsMenuOpen(false);
+  };
+
+  const addNewClock = () => {
+    const maxX = Math.max(
+      50,
+      ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
+    );
+    const newClock = {
+      id: Date.now(),
+      type: "clock",
+      title: "Часы",
+      clockType: "analog",
+      x: maxX + 20,
+      y: 50,
+      width: 320,
+      height: 320,
+    };
+    saveBlocks([...blocks, newClock]);
     setIsMenuOpen(false);
   };
 
@@ -607,6 +837,10 @@ const Workspace = ({
               <span>📦</span>
               <span>Добавить блок задач</span>
             </button>
+            <button className="menu-item" onClick={addNewClock}>
+              <span>🕐</span>
+              <span>Добавить часы</span>
+            </button>
             <button className="menu-item" onClick={handleOpenCustomize}>
               <span>🎨</span>
               <span>Настройка цветов</span>
@@ -644,16 +878,30 @@ const Workspace = ({
           overflow: "hidden",
         }}
       >
-        {blocks.map((block) => (
-          <TaskBlock
-            key={block.id}
-            block={block}
-            onUpdate={updateBlock}
-            onDelete={deleteBlock}
-            colors={colors}
-            isLocked={isLocked}
-          />
-        ))}
+        {blocks.map((block) => {
+          if (block.type === "clock") {
+            return (
+              <ClockWidget
+                key={block.id}
+                block={block}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                colors={colors}
+                isLocked={isLocked}
+              />
+            );
+          }
+          return (
+            <TaskBlock
+              key={block.id}
+              block={block}
+              onUpdate={updateBlock}
+              onDelete={deleteBlock}
+              colors={colors}
+              isLocked={isLocked}
+            />
+          );
+        })}
       </div>
 
       <button className="floating-menu-btn" onClick={handleMenuToggle}>
@@ -665,6 +913,10 @@ const Workspace = ({
           <button className="menu-item" onClick={addNewBlock}>
             <span>📦</span>
             <span>Добавить блок задач</span>
+          </button>
+          <button className="menu-item" onClick={addNewClock}>
+            <span>🕐</span>
+            <span>Добавить часы</span>
           </button>
           <button className="menu-item" onClick={handleOpenCustomize}>
             <span>🎨</span>

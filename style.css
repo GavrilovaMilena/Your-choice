@@ -1045,3 +1045,146 @@ body {
     padding-top: 0.8rem;
   }
 }
+
+/* Добавьте в конец файла style.css */
+
+/* Стили для виджета часов */
+.clock-widget {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 32px;
+  padding: 1.5rem;
+  cursor: default;
+}
+
+/* Аналоговые часы */
+.analog-clock {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.clock-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.hour-mark {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.hour-mark span {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hour-hand,
+.minute-hand,
+.second-hand {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  transform-origin: bottom center;
+  background: #333;
+  border-radius: 4px;
+}
+
+.hour-hand {
+  width: 6px;
+  height: 50px;
+  background: #333;
+  transform: translateX(-50%) rotate(0deg);
+}
+
+.minute-hand {
+  width: 4px;
+  height: 70px;
+  background: #666;
+  transform: translateX(-50%) rotate(0deg);
+}
+
+.second-hand {
+  width: 2px;
+  height: 80px;
+  background: #e74c3c;
+  transform: translateX(-50%) rotate(0deg);
+}
+
+.clock-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: #333;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+/* Электронные часы */
+.digital-clock {
+  text-align: center;
+  font-family: "Courier New", monospace;
+}
+
+.digital-time {
+  font-size: 3rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: 4px;
+}
+
+.digital-date {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8px;
+}
+
+/* Стили для выбора типа часов */
+.clock-selector {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 20px;
+}
+
+.clock-type-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px 8px;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+
+.clock-type-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.clock-type-btn.active {
+  background: #87ceeb;
+  color: white;
+}
