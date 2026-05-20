@@ -142,11 +142,16 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">
           ✨ Перетаскивай задачи (если стол разблокирован)
         </div>
-        <div className="tip-item">🎨 Настрой цвета через кнопку 🎨</div>
+        <div className="tip-item">
+          🎨 Настрой цвета через кнопку 🎨 в левом нижнем меню
+        </div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">📋 Создавай несколько столов (макс. 20)</div>
         <div className="tip-item">
           ✏️ Кликни по названию стола для изменения
+        </div>
+        <div className="tip-item">
+          🔒 Блокируй задачи кнопкой 🔒 справа сверху
         </div>
       </div>
       <div className="notification-footer">
@@ -163,7 +168,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
   );
 };
 
-// Модальное окно кастомизации
+// Модальное окно кастомизации (теперь для конкретного стола)
 const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   const [localColors, setLocalColors] = useState(colors);
 
@@ -174,7 +179,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   if (!isOpen) return null;
 
   const handleSave = () => {
-    onSave(localColors, false);
+    onSave(localColors);
     onClose();
   };
 
@@ -186,14 +191,14 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
       accent: "#87CEEB",
     };
     setLocalColors(defaultColors);
-    onSave(defaultColors, false);
+    onSave(defaultColors);
   };
 
   return (
     <div className="modal" style={{ display: "block" }}>
       <div className="modal-content">
         <div className="modal-header">
-          <h2>Кастомизация</h2>
+          <h2>Кастомизация стола</h2>
           <button className="close-modal" onClick={onClose}>
             &times;
           </button>
@@ -257,6 +262,28 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
+// Выпадающее меню
+const FloatingMenu = ({ isOpen, onClose, onOpenCustomize }) => {
+  if (!isOpen) return null;
+
+  const handleItemClick = (callback) => {
+    callback();
+    onClose();
+  };
+
+  return (
+    <div className="floating-menu">
+      <button
+        className="menu-item"
+        onClick={() => handleItemClick(onOpenCustomize)}
+      >
+        <span>🎨</span>
+        <span>Настройка цветов</span>
+      </button>
+    </div>
+  );
+};
+
 // Компонент рабочего стола
 const Workspace = ({
   desktop,
@@ -270,6 +297,7 @@ const Workspace = ({
   const [tasks, setTasks] = useState(desktop.tasks || []);
   const [newTask, setNewTask] = useState("");
   const [showTips, setShowTips] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
@@ -301,20 +329,39 @@ const Workspace = ({
     saveTasks(tasks.filter((t) => t.id !== id));
   };
 
+  const handleMenuToggle = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleOpenCustomize = () => {
+    onOpenCustomize();
+    setIsMenuOpen(false);
+  };
+
+  // Закрытие меню при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        isMenuOpen &&
+        !e.target.closest(".floating-menu") &&
+        !e.target.closest(".floating-menu-btn")
+      ) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [isMenuOpen]);
+
   return (
     <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
       <div className="control-panel">
         <button className="back-btn" onClick={onBack}>
           ← Назад к столам
         </button>
-        <div className="control-buttons">
-          <button className="control-btn" onClick={onOpenCustomize}>
-            🎨
-          </button>
-          <button className="control-btn" onClick={onToggleLock}>
-            {isLocked ? "🔒" : "🔓"}
-          </button>
-        </div>
+        <button className="lock-btn" onClick={onToggleLock}>
+          {isLocked ? "🔒" : "🔓"}
+        </button>
       </div>
       <div className="dashboard">
         <div
@@ -332,7 +379,7 @@ const Workspace = ({
           </div>
           <ul className="task-list">
             {tasks.map((task) => (
-              <li key={task.id} className="task-item">
+              <li key={task.id} className="task-item" draggable={!isLocked}>
                 <input
                   type="checkbox"
                   checked={task.completed}
@@ -360,6 +407,7 @@ const Workspace = ({
               onChange={(e) => setNewTask(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && addTask()}
               placeholder="Новая задача..."
+              style={{ color: colors.text }}
             />
             <button
               onClick={addTask}
@@ -370,9 +418,19 @@ const Workspace = ({
           </div>
         </div>
       </div>
-      <div className="info-text" style={{ color: colors.text }}>
-        ✨ Небесный планер | Перемещай задачи, если стол разблокирован ✨
-      </div>
+
+      {/* Плавающая кнопка меню */}
+      <button className="floating-menu-btn" onClick={handleMenuToggle}>
+        +
+      </button>
+
+      {/* Выпадающее меню */}
+      <FloatingMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onOpenCustomize={handleOpenCustomize}
+      />
+
       {showTips && (
         <TipsNotification
           onClose={() => setShowTips(false)}
@@ -483,13 +541,6 @@ const App = () => {
   const [showStart, setShowStart] = useState(true);
   const [desktops, setDesktops] = useState([]);
   const [currentDesktopId, setCurrentDesktopId] = useState(null);
-  const [colors, setColors] = useState({
-    bgPage: "#f0f8ff",
-    text: "#1e2a3e",
-    cardBg: "#ffffff",
-    accent: "#87CEEB",
-  });
-  const [isLocked, setIsLocked] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [renameDialog, setRenameDialog] = useState({
     isOpen: false,
@@ -505,25 +556,43 @@ const App = () => {
   const MAX_DESKTOPS = 20;
   const isMaxDesktops = desktops.length >= MAX_DESKTOPS;
 
+  const currentDesktop = desktops.find((d) => d.id === currentDesktopId);
+  const currentColors = currentDesktop?.colors || {
+    bgPage: "#f0f8ff",
+    text: "#1e2a3e",
+    cardBg: "#ffffff",
+    accent: "#87CEEB",
+  };
+  const isLocked = currentDesktop?.isLocked || false;
+
   // Загрузка данных
   useEffect(() => {
     const savedDesktops = localStorage.getItem("skyPlanner_desktops");
-    const savedColors = localStorage.getItem("skyPlanner_colors");
-    const savedLocked = localStorage.getItem("skyPlanner_locked");
     const savedCurrentDesktop = localStorage.getItem(
       "skyPlanner_currentDesktop",
     );
 
     if (savedDesktops) {
       const parsed = JSON.parse(savedDesktops);
-      setDesktops(parsed);
-      if (parsed.length === 0) {
+      // Восстанавливаем цвета для каждого стола
+      const desktopsWithDefaults = parsed.map((d) => ({
+        ...d,
+        colors: d.colors || {
+          bgPage: "#f0f8ff",
+          text: "#1e2a3e",
+          cardBg: "#ffffff",
+          accent: "#87CEEB",
+        },
+        isLocked: d.isLocked || false,
+      }));
+      setDesktops(desktopsWithDefaults);
+      if (desktopsWithDefaults.length === 0) {
         setShowStart(true);
       } else {
         setShowStart(false);
         if (savedCurrentDesktop) {
           const currentId = parseInt(savedCurrentDesktop);
-          if (parsed.some((d) => d.id === currentId)) {
+          if (desktopsWithDefaults.some((d) => d.id === currentId)) {
             setCurrentDesktopId(currentId);
           }
         }
@@ -531,9 +600,6 @@ const App = () => {
     } else {
       setShowStart(true);
     }
-
-    if (savedColors) setColors(JSON.parse(savedColors));
-    if (savedLocked) setIsLocked(JSON.parse(savedLocked));
   }, []);
 
   // Сохранение данных
@@ -541,16 +607,6 @@ const App = () => {
     localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
     localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
   }, [desktops, currentDesktopId]);
-
-  useEffect(() => {
-    localStorage.setItem("skyPlanner_colors", JSON.stringify(colors));
-  }, [colors]);
-
-  useEffect(() => {
-    localStorage.setItem("skyPlanner_locked", JSON.stringify(isLocked));
-  }, [isLocked]);
-
-  const currentDesktop = desktops.find((d) => d.id === currentDesktopId);
 
   const handleStart = () => {
     setShowStart(false);
@@ -577,7 +633,18 @@ const App = () => {
         setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
         return;
       }
-      const newDesktop = { id: Date.now(), name: newName.trim(), tasks: [] };
+      const newDesktop = {
+        id: Date.now(),
+        name: newName.trim(),
+        tasks: [],
+        colors: {
+          bgPage: "#f0f8ff",
+          text: "#1e2a3e",
+          cardBg: "#ffffff",
+          accent: "#87CEEB",
+        },
+        isLocked: false,
+      };
       setDesktops((prev) => [...prev, newDesktop]);
       setCurrentDesktopId(newDesktop.id);
     } else {
@@ -610,8 +677,18 @@ const App = () => {
     );
   };
 
-  const saveColorsHandler = (newColors) => {
-    setColors(newColors);
+  const updateCurrentDesktopColors = (newColors) => {
+    if (currentDesktop) {
+      const updated = { ...currentDesktop, colors: newColors };
+      updateDesktop(updated);
+    }
+  };
+
+  const toggleLock = () => {
+    if (currentDesktop) {
+      const updated = { ...currentDesktop, isLocked: !currentDesktop.isLocked };
+      updateDesktop(updated);
+    }
   };
 
   if (showStart) return <StartScreen onStart={handleStart} />;
@@ -622,16 +699,16 @@ const App = () => {
           desktop={currentDesktop}
           onUpdate={updateDesktop}
           onBack={() => setCurrentDesktopId(null)}
-          colors={colors}
+          colors={currentColors}
           isLocked={isLocked}
-          onToggleLock={() => setIsLocked(!isLocked)}
+          onToggleLock={toggleLock}
           onOpenCustomize={() => setShowCustomize(true)}
         />
         <CustomizeModal
           isOpen={showCustomize}
           onClose={() => setShowCustomize(false)}
-          colors={colors}
-          onSave={saveColorsHandler}
+          colors={currentColors}
+          onSave={updateCurrentDesktopColors}
         />
       </>
     );
@@ -647,12 +724,6 @@ const App = () => {
           setRenameDialog({ isOpen: true, desktopId: id, currentName })
         }
         isMaxDesktops={isMaxDesktops}
-      />
-      <CustomizeModal
-        isOpen={showCustomize}
-        onClose={() => setShowCustomize(false)}
-        colors={colors}
-        onSave={saveColorsHandler}
       />
       <RenameDialog
         isOpen={renameDialog.isOpen}
