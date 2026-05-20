@@ -145,6 +145,10 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">
           🎨 Настрой цвета через кнопку 🎨 в левом нижнем меню
         </div>
+        <div className="tip-item">
+          ➕ Добавляй новые блоки через меню кнопки +
+        </div>
+        <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">📋 Создавай несколько столов (макс. 20)</div>
         <div className="tip-item">
@@ -168,149 +172,14 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
   );
 };
 
-// Модальное окно кастомизации (теперь для конкретного стола)
-const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
-  const [localColors, setLocalColors] = useState(colors);
-
-  useEffect(() => {
-    setLocalColors(colors);
-  }, [colors, isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSave = () => {
-    onSave(localColors);
-    onClose();
-  };
-
-  const handleReset = () => {
-    const defaultColors = {
-      bgPage: "#f0f8ff",
-      text: "#1e2a3e",
-      cardBg: "#ffffff",
-      accent: "#87CEEB",
-    };
-    setLocalColors(defaultColors);
-    onSave(defaultColors);
-  };
-
-  return (
-    <div className="modal" style={{ display: "block" }}>
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>Кастомизация стола</h2>
-          <button className="close-modal" onClick={onClose}>
-            &times;
-          </button>
-        </div>
-        <div className="modal-body">
-          <div className="customize-section">
-            <label>🎨 Фон страницы</label>
-            <input
-              type="color"
-              value={localColors.bgPage}
-              onChange={(e) =>
-                setLocalColors({ ...localColors, bgPage: e.target.value })
-              }
-              className="color-circle"
-            />
-          </div>
-          <div className="customize-section">
-            <label>📝 Цвет текста</label>
-            <input
-              type="color"
-              value={localColors.text}
-              onChange={(e) =>
-                setLocalColors({ ...localColors, text: e.target.value })
-              }
-              className="color-circle"
-            />
-          </div>
-          <div className="customize-section">
-            <label>📦 Фон блоков</label>
-            <input
-              type="color"
-              value={localColors.cardBg}
-              onChange={(e) =>
-                setLocalColors({ ...localColors, cardBg: e.target.value })
-              }
-              className="color-circle"
-            />
-          </div>
-          <div className="customize-section">
-            <label>✨ Акцент</label>
-            <input
-              type="color"
-              value={localColors.accent}
-              onChange={(e) =>
-                setLocalColors({ ...localColors, accent: e.target.value })
-              }
-              className="color-circle"
-            />
-          </div>
-          <div className="modal-buttons">
-            <button className="modal-reset-btn" onClick={handleReset}>
-              Сбросить
-            </button>
-            <button className="modal-save-btn" onClick={handleSave}>
-              Сохранить
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Выпадающее меню
-const FloatingMenu = ({ isOpen, onClose, onOpenCustomize }) => {
-  if (!isOpen) return null;
-
-  const handleItemClick = (callback) => {
-    callback();
-    onClose();
-  };
-
-  return (
-    <div className="floating-menu">
-      <button
-        className="menu-item"
-        onClick={() => handleItemClick(onOpenCustomize)}
-      >
-        <span>🎨</span>
-        <span>Настройка цветов</span>
-      </button>
-    </div>
-  );
-};
-
-// Компонент рабочего стола
-const Workspace = ({
-  desktop,
-  onUpdate,
-  onBack,
-  colors,
-  isLocked,
-  onToggleLock,
-  onOpenCustomize,
-}) => {
-  const [tasks, setTasks] = useState(desktop.tasks || []);
+// Компонент блока (карточки) задач
+const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+  const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
-  const [showTips, setShowTips] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
-    if (!tipsShown) {
-      setShowTips(true);
-      localStorage.setItem("skyPlanner_tipsShownInWorkspace", "true");
-      setTimeout(() => setShowTips(false), 8000);
-    }
-  }, []);
 
   const saveTasks = (newTasks) => {
     setTasks(newTasks);
-    onUpdate({ ...desktop, tasks: newTasks });
+    onUpdate({ ...block, tasks: newTasks });
   };
 
   const addTask = () => {
@@ -329,6 +198,113 @@ const Workspace = ({
     saveTasks(tasks.filter((t) => t.id !== id));
   };
 
+  return (
+    <div
+      className="card"
+      style={{
+        backgroundColor: colors.cardBg,
+        borderColor: colors.accent + "80",
+      }}
+    >
+      <button className="card-delete" onClick={() => onDelete(block.id)}>
+        ✕
+      </button>
+      <div className="card-header">
+        <div className="card-title">
+          <span>{block.icon || "📋"}</span>
+          <span style={{ color: colors.accent }}>{block.title}</span>
+        </div>
+      </div>
+      <ul className="task-list">
+        {tasks.map((task) => (
+          <li key={task.id} className="task-item" draggable={!isLocked}>
+            <input
+              type="checkbox"
+              checked={task.completed}
+              onChange={() => toggleTask(task.id)}
+              style={{ accentColor: colors.accent }}
+            />
+            <span
+              className={`task-text ${task.completed ? "done" : ""}`}
+              style={{ color: colors.text }}
+            >
+              {task.text}
+            </span>
+            <button className="delete-task" onClick={() => deleteTask(task.id)}>
+              🗑️
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="add-task-form">
+        <input
+          value={newTask}
+          onChange={(e) => setNewTask(e.target.value)}
+          onKeyPress={(e) => e.key === "Enter" && addTask()}
+          placeholder="Новая задача..."
+          style={{ color: colors.text }}
+        />
+        <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
+          + Добавить
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Компонент рабочего стола
+const Workspace = ({
+  desktop,
+  onUpdate,
+  onBack,
+  colors,
+  isLocked,
+  onToggleLock,
+  onOpenCustomize,
+}) => {
+  const [blocks, setBlocks] = useState(desktop.blocks || []);
+  const [showTips, setShowTips] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
+    if (!tipsShown) {
+      setShowTips(true);
+      localStorage.setItem("skyPlanner_tipsShownInWorkspace", "true");
+      setTimeout(() => setShowTips(false), 8000);
+    }
+  }, []);
+
+  const saveBlocks = (newBlocks) => {
+    setBlocks(newBlocks);
+    onUpdate({ ...desktop, blocks: newBlocks });
+  };
+
+  const addNewBlock = () => {
+    const newBlock = {
+      id: Date.now(),
+      title: "Новый блок задач",
+      icon: "📝",
+      tasks: [],
+    };
+    saveBlocks([...blocks, newBlock]);
+    setIsMenuOpen(false);
+  };
+
+  const deleteBlock = (blockId) => {
+    if (blocks.length === 1) {
+      alert("Нельзя удалить последний блок");
+      return;
+    }
+    saveBlocks(blocks.filter((b) => b.id !== blockId));
+  };
+
+  const updateBlock = (updatedBlock) => {
+    saveBlocks(
+      blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
+    );
+  };
+
   const handleMenuToggle = () => {
     setIsMenuOpen(!isMenuOpen);
   };
@@ -338,7 +314,6 @@ const Workspace = ({
     setIsMenuOpen(false);
   };
 
-  // Закрытие меню при клике вне его
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -364,72 +339,34 @@ const Workspace = ({
         </button>
       </div>
       <div className="dashboard">
-        <div
-          className="card"
-          style={{
-            backgroundColor: colors.cardBg,
-            borderColor: colors.accent + "80",
-          }}
-        >
-          <div className="card-header">
-            <div className="card-title">
-              <span>📋</span>
-              <span style={{ color: colors.accent }}>Мои задачи</span>
-            </div>
-          </div>
-          <ul className="task-list">
-            {tasks.map((task) => (
-              <li key={task.id} className="task-item" draggable={!isLocked}>
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  onChange={() => toggleTask(task.id)}
-                  style={{ accentColor: colors.accent }}
-                />
-                <span
-                  className={`task-text ${task.completed ? "done" : ""}`}
-                  style={{ color: colors.text }}
-                >
-                  {task.text}
-                </span>
-                <button
-                  className="delete-task"
-                  onClick={() => deleteTask(task.id)}
-                >
-                  🗑️
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="add-task-form">
-            <input
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addTask()}
-              placeholder="Новая задача..."
-              style={{ color: colors.text }}
-            />
-            <button
-              onClick={addTask}
-              style={{ backgroundColor: colors.accent }}
-            >
-              + Добавить
-            </button>
-          </div>
-        </div>
+        {blocks.map((block) => (
+          <TaskBlock
+            key={block.id}
+            block={block}
+            onUpdate={updateBlock}
+            onDelete={deleteBlock}
+            colors={colors}
+            isLocked={isLocked}
+          />
+        ))}
       </div>
 
-      {/* Плавающая кнопка меню */}
       <button className="floating-menu-btn" onClick={handleMenuToggle}>
         +
       </button>
 
-      {/* Выпадающее меню */}
-      <FloatingMenu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        onOpenCustomize={handleOpenCustomize}
-      />
+      {isMenuOpen && (
+        <div className="floating-menu">
+          <button className="menu-item" onClick={addNewBlock}>
+            <span>📦</span>
+            <span>Добавить блок задач</span>
+          </button>
+          <button className="menu-item" onClick={handleOpenCustomize}>
+            <span>🎨</span>
+            <span>Настройка цветов</span>
+          </button>
+        </div>
+      )}
 
       {showTips && (
         <TipsNotification
@@ -518,10 +455,22 @@ const DesktopsScreen = ({
             </div>
             <div className="desktop-stats">
               <span>
-                ✅ {desktop.tasks?.filter((t) => t.completed).length || 0}{" "}
+                ✅{" "}
+                {desktop.blocks?.reduce(
+                  (sum, block) =>
+                    sum + (block.tasks?.filter((t) => t.completed).length || 0),
+                  0,
+                ) || 0}{" "}
                 выполнено
               </span>
-              <span>📝 {desktop.tasks?.length || 0} всего</span>
+              <span>
+                📝{" "}
+                {desktop.blocks?.reduce(
+                  (sum, block) => sum + (block.tasks?.length || 0),
+                  0,
+                ) || 0}{" "}
+                всего
+              </span>
             </div>
             {showTooltipId === desktop.id && (
               <div className="rename-tooltip">
@@ -565,7 +514,6 @@ const App = () => {
   };
   const isLocked = currentDesktop?.isLocked || false;
 
-  // Загрузка данных
   useEffect(() => {
     const savedDesktops = localStorage.getItem("skyPlanner_desktops");
     const savedCurrentDesktop = localStorage.getItem(
@@ -574,9 +522,16 @@ const App = () => {
 
     if (savedDesktops) {
       const parsed = JSON.parse(savedDesktops);
-      // Восстанавливаем цвета для каждого стола
       const desktopsWithDefaults = parsed.map((d) => ({
         ...d,
+        blocks: d.blocks || [
+          {
+            id: Date.now(),
+            title: "Мои задачи",
+            icon: "📋",
+            tasks: d.tasks || [],
+          },
+        ],
         colors: d.colors || {
           bgPage: "#f0f8ff",
           text: "#1e2a3e",
@@ -602,7 +557,6 @@ const App = () => {
     }
   }, []);
 
-  // Сохранение данных
   useEffect(() => {
     localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
     localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
@@ -636,7 +590,9 @@ const App = () => {
       const newDesktop = {
         id: Date.now(),
         name: newName.trim(),
-        tasks: [],
+        blocks: [
+          { id: Date.now(), title: "Мои задачи", icon: "📋", tasks: [] },
+        ],
         colors: {
           bgPage: "#f0f8ff",
           text: "#1e2a3e",
