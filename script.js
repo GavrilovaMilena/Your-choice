@@ -1,5 +1,6 @@
 const { useState, useEffect } = React;
-const { Rnd } = window.ReactRnd;
+// Получаем Rnd из глобальной переменной
+const Rnd = window.ReactRnd ? window.ReactRnd.Rnd : window.ReactRnd;
 
 // Кастомный диалог для ввода текста (переименование)
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
@@ -291,6 +292,12 @@ const TaskBlock = ({
   const deleteTask = (id) => {
     saveTasks(tasks.filter((t) => t.id !== id));
   };
+
+  // Проверяем, что Rnd доступен
+  if (!Rnd) {
+    console.error("ReactRnd not loaded");
+    return <div>Loading...</div>;
+  }
 
   return (
     <Rnd
@@ -945,5 +952,10 @@ const App = () => {
   );
 };
 
-const root = document.getElementById("root");
-ReactDOM.createRoot(root).render(<App />);
+// Рендерим приложение
+const rootElement = document.getElementById("root");
+if (ReactDOM.createRoot) {
+  ReactDOM.createRoot(rootElement).render(React.createElement(App));
+} else {
+  ReactDOM.render(React.createElement(App), rootElement);
+}
