@@ -392,9 +392,9 @@ const DesktopsScreen = ({
   onSelectDesktop,
   onDeleteDesktop,
   onRenameDesktop,
+  isMaxDesktops,
 }) => {
   const [showTooltipId, setShowTooltipId] = useState(null);
-  const MAX_DESKTOPS = 20;
 
   useEffect(() => {
     const tooltipShown = localStorage.getItem("skyPlanner_renameTooltip");
@@ -413,12 +413,7 @@ const DesktopsScreen = ({
   };
 
   const handleCreateDesktop = () => {
-    if (desktops.length >= MAX_DESKTOPS) {
-      alert(
-        `Достигнуто максимальное количество рабочих столов (${MAX_DESKTOPS})`,
-      );
-      return;
-    }
+    if (isMaxDesktops) return;
     onCreateDesktop();
   };
 
@@ -427,21 +422,19 @@ const DesktopsScreen = ({
       <div className="desktops-header">
         <h1>Your choice</h1>
         <p className="subtitle">your choice - your decisions</p>
-        {desktops.length >= MAX_DESKTOPS && (
-          <p className="limit-warning">
-            ⚠️ Достигнут лимит рабочих столов ({MAX_DESKTOPS})
-          </p>
-        )}
       </div>
       <div className="desktops-grid">
         <div
-          className="desktop-card add-desktop-card"
+          className={`desktop-card add-desktop-card ${isMaxDesktops ? "disabled" : ""}`}
           onClick={handleCreateDesktop}
+          style={isMaxDesktops ? { cursor: "not-allowed", opacity: 0.6 } : {}}
         >
           <div className="add-icon">➕</div>
           <h3>Создать новый стол</h3>
-          {desktops.length >= MAX_DESKTOPS && (
-            <p className="limit-message">Лимит достигнут</p>
+          {isMaxDesktops && (
+            <p className="limit-message">
+              ⚠️ Лимит рабочих столов достигнут - 20шт.
+            </p>
           )}
         </div>
         {desktops.map((desktop) => (
@@ -510,6 +503,7 @@ const App = () => {
   });
 
   const MAX_DESKTOPS = 20;
+  const isMaxDesktops = desktops.length >= MAX_DESKTOPS;
 
   // Загрузка данных
   useEffect(() => {
@@ -652,6 +646,7 @@ const App = () => {
         onRenameDesktop={(id, currentName) =>
           setRenameDialog({ isOpen: true, desktopId: id, currentName })
         }
+        isMaxDesktops={isMaxDesktops}
       />
       <CustomizeModal
         isOpen={showCustomize}
