@@ -144,7 +144,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         </div>
         <div className="tip-item">🎨 Настрой цвета через кнопку 🎨</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
-        <div className="tip-item">📋 Создавай несколько столов</div>
+        <div className="tip-item">📋 Создавай несколько столов (макс. 20)</div>
         <div className="tip-item">
           ✏️ Кликни по названию стола для изменения
         </div>
@@ -266,14 +266,12 @@ const Workspace = ({
   isLocked,
   onToggleLock,
   onOpenCustomize,
-  onShowTips,
 }) => {
   const [tasks, setTasks] = useState(desktop.tasks || []);
   const [newTask, setNewTask] = useState("");
   const [showTips, setShowTips] = useState(false);
 
   useEffect(() => {
-    // Показываем подсказки при входе в стол
     const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
     if (!tipsShown) {
       setShowTips(true);
@@ -396,6 +394,7 @@ const DesktopsScreen = ({
   onRenameDesktop,
 }) => {
   const [showTooltipId, setShowTooltipId] = useState(null);
+  const MAX_DESKTOPS = 20;
 
   useEffect(() => {
     const tooltipShown = localStorage.getItem("skyPlanner_renameTooltip");
@@ -413,19 +412,37 @@ const DesktopsScreen = ({
     onRenameDesktop(desktop.id, desktop.name);
   };
 
+  const handleCreateDesktop = () => {
+    if (desktops.length >= MAX_DESKTOPS) {
+      alert(
+        `Достигнуто максимальное количество рабочих столов (${MAX_DESKTOPS})`,
+      );
+      return;
+    }
+    onCreateDesktop();
+  };
+
   return (
     <div className="desktops-screen">
       <div className="desktops-header">
         <h1>Your choice</h1>
         <p className="subtitle">your choice - your decisions</p>
+        {desktops.length >= MAX_DESKTOPS && (
+          <p className="limit-warning">
+            ⚠️ Достигнут лимит рабочих столов ({MAX_DESKTOPS})
+          </p>
+        )}
       </div>
       <div className="desktops-grid">
         <div
           className="desktop-card add-desktop-card"
-          onClick={onCreateDesktop}
+          onClick={handleCreateDesktop}
         >
           <div className="add-icon">➕</div>
           <h3>Создать новый стол</h3>
+          {desktops.length >= MAX_DESKTOPS && (
+            <p className="limit-message">Лимит достигнут</p>
+          )}
         </div>
         {desktops.map((desktop) => (
           <div
@@ -492,6 +509,8 @@ const App = () => {
     desktopName: "",
   });
 
+  const MAX_DESKTOPS = 20;
+
   // Загрузка данных
   useEffect(() => {
     const savedDesktops = localStorage.getItem("skyPlanner_desktops");
@@ -545,12 +564,25 @@ const App = () => {
   };
 
   const createNewDesktop = () => {
+    if (desktops.length >= MAX_DESKTOPS) {
+      alert(
+        `Достигнуто максимальное количество рабочих столов (${MAX_DESKTOPS})`,
+      );
+      return;
+    }
     setRenameDialog({ isOpen: true, desktopId: null, currentName: "" });
   };
 
   const handleRenameConfirm = (newName) => {
     if (!newName || !newName.trim()) return;
     if (renameDialog.desktopId === null) {
+      if (desktops.length >= MAX_DESKTOPS) {
+        alert(
+          `Достигнуто максимальное количество рабочих столов (${MAX_DESKTOPS})`,
+        );
+        setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
+        return;
+      }
       const newDesktop = { id: Date.now(), name: newName.trim(), tasks: [] };
       setDesktops((prev) => [...prev, newDesktop]);
       setCurrentDesktopId(newDesktop.id);

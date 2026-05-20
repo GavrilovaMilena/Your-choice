@@ -110,6 +110,7 @@ body {
 .desktops-header h1 {
   font-size: 3rem;
   color: #87ceeb;
+  margin-bottom: 0.5rem;
   text-shadow: none;
 }
 
@@ -120,6 +121,12 @@ body {
   opacity: 0.8;
 }
 
+.desktops-header .limit-warning {
+  color: #e74c3c;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
 .desktops-grid {
   max-width: 1200px;
   margin: 0 auto;
@@ -128,6 +135,7 @@ body {
   gap: 2rem;
 }
 
+/* Фиксированная высота для всех карточек */
 .desktop-card {
   background: white;
   border-radius: 20px;
@@ -136,7 +144,10 @@ body {
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   position: relative;
-  border: 1px solid #e0e0e0; /* Тонкая обводка */
+  border: 1px solid #e0e0e0;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
 }
 
 .desktop-card:hover {
@@ -145,9 +156,10 @@ body {
   border-color: #87ceeb;
 }
 
+/* Карточка добавления имеет такую же высоту */
 .add-desktop-card {
   background: #fafafa;
-  border: 2px dashed #87ceeb; /* Тонкая обводка */
+  border: 2px dashed #87ceeb;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -168,6 +180,12 @@ body {
 .add-desktop-card h3 {
   color: #87ceeb;
   margin-bottom: 0.5rem;
+}
+
+.limit-message {
+  font-size: 0.8rem;
+  color: #e74c3c;
+  margin-top: 0.5rem;
 }
 
 .desktop-title {
@@ -192,7 +210,8 @@ body {
   gap: 1rem;
   color: #7f8c8d;
   font-size: 0.85rem;
-  margin-top: 1rem;
+  margin-top: auto;
+  padding-top: 1rem;
 }
 
 .desktop-delete {
@@ -259,6 +278,20 @@ body {
 
 .dialog-body {
   padding: 1.5rem;
+}
+
+.dialog-body input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.dialog-body input:focus {
+  border-color: #87ceeb;
 }
 
 .dialog-body p {
@@ -746,5 +779,8 @@ body {
     width: 220px;
     text-align: center;
     top: -85px;
+  }
+  .desktops-header h1 {
+    font-size: 2rem;
   }
 }
