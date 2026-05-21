@@ -144,6 +144,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">🎨 Настрой цвета через кнопку 🎨 в меню</div>
         <div className="tip-item">➕ Добавляй новые блоки через кнопку +</div>
         <div className="tip-item">🕐 Добавляй часы через меню</div>
+        <div className="tip-item">📅 Добавляй календарь через меню</div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -258,12 +259,274 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач с ручным перетаскиванием и изменением размера
+// Компонент виджета календаря
+const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [position, setPosition] = useState({
+    x: block.x || 50,
+    y: block.y || 50,
+  });
+  const [size, setSize] = useState({
+    width: block.width || 350,
+    height: block.height || 320,
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (block.x !== undefined && block.y !== undefined) {
+      setPosition({ x: block.x, y: block.y });
+    }
+    if (block.width !== undefined && block.height !== undefined) {
+      setSize({ width: block.width, height: block.height });
+    }
+  }, [block.id]);
+
+  const savePosition = () => {
+    onUpdate({
+      ...block,
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
+    });
+  };
+
+  // Обработчики перетаскивания
+  const handleMouseDown = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+    dragStartPos.current = { x: position.x, y: position.y };
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging && !isLocked) {
+      const newX = e.clientX - dragStartRef.current.x;
+      const newY = e.clientY - dragStartRef.current.y;
+      setPosition({ x: newX, y: newY });
+    }
+    if (isResizing && !isLocked) {
+      const deltaX = e.clientX - resizeStartRef.current.x;
+      const deltaY = e.clientY - resizeStartRef.current.y;
+      const newWidth = Math.max(280, resizeStartRef.current.width + deltaX);
+      const newHeight = Math.max(250, resizeStartRef.current.height + deltaY);
+      setSize({ width: newWidth, height: newHeight });
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      if (
+        dragStartPos.current.x !== position.x ||
+        dragStartPos.current.y !== position.y
+      ) {
+        onUpdate({
+          ...block,
+          x: position.x,
+          y: position.y,
+          width: size.width,
+          height: size.height,
+        });
+      }
+    }
+    if (isResizing) {
+      setIsResizing(false);
+      onUpdate({
+        ...block,
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+      });
+    }
+  };
+
+  const handleResizeStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    resizeStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: size.width,
+      height: size.height,
+    };
+  };
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, isResizing]);
+
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year, month) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const handlePrevMonth = () => {
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
+    );
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
+    );
+  };
+
+  const handleDateClick = (day) => {
+    const newDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      day,
+    );
+    setSelectedDate(newDate);
+  };
+
+  const renderCalendar = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+    const today = new Date();
+
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`empty-${i}`} className="calendar-day"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isSelected =
+        selectedDate.getDate() === day &&
+        selectedDate.getMonth() === month &&
+        selectedDate.getFullYear() === year;
+      const isToday =
+        today.getDate() === day &&
+        today.getMonth() === month &&
+        today.getFullYear() === year;
+      days.push(
+        <div
+          key={day}
+          className={`calendar-day ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`}
+          onClick={() => handleDateClick(day)}
+        >
+          {day}
+        </div>,
+      );
+    }
+
+    return days;
+  };
+
+  const monthNames = [
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+  ];
+  const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+  return (
+    <div
+      className="free-card-container"
+      style={{
+        position: "absolute",
+        left: position.x + "px",
+        top: position.y + "px",
+        width: size.width + "px",
+        height: size.height + "px",
+        cursor: isDragging ? "grabbing" : "default",
+        zIndex: isDragging || isResizing ? 1000 : 1,
+        minWidth: "280px",
+        minHeight: "250px",
+      }}
+    >
+      <div
+        className="free-card"
+        style={{
+          backgroundColor: colors.cardBg,
+          borderColor: colors.accent + "80",
+          padding: 0,
+          overflow: "hidden",
+          cursor: isLocked ? "default" : "grab",
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        {!isLocked && (
+          <button
+            className="card-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(block.id);
+            }}
+          >
+            ✕
+          </button>
+        )}
+        <div className="calendar-widget">
+          <div className="calendar-header">
+            <button className="calendar-nav-btn" onClick={handlePrevMonth}>
+              ◀
+            </button>
+            <span className="calendar-month-year">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </span>
+            <button className="calendar-nav-btn" onClick={handleNextMonth}>
+              ▶
+            </button>
+          </div>
+          <div className="calendar-weekdays">
+            {weekDays.map((day) => (
+              <div key={day}>{day}</div>
+            ))}
+          </div>
+          <div className="calendar-days">{renderCalendar()}</div>
+        </div>
+        {!isLocked && (
+          <div className="resize-handle" onMouseDown={handleResizeStart}>
+            <div></div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Компонент блока (карточки) задач
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
   const [position, setPosition] = useState({
     x: block.x || 50,
     y: block.y || 50,
@@ -272,13 +535,32 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     width: Math.max(420, block.width || 420),
     height: Math.max(420, block.height || 420),
   });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const taskListRef = useRef(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (block.x !== undefined && block.y !== undefined) {
+      setPosition({ x: block.x, y: block.y });
+    }
+    if (block.width !== undefined && block.height !== undefined) {
+      setSize({ width: block.width, height: block.height });
+    }
+  }, [block.id]);
 
   const saveTasks = (newTasks) => {
     setTasks(newTasks);
-    onUpdate({ ...block, tasks: newTasks, ...position, ...size });
+    onUpdate({
+      ...block,
+      tasks: newTasks,
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
+    });
   };
 
   const addTask = () => {
@@ -307,30 +589,63 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   }, [tasks, size.height]);
 
   // Обработчики перетаскивания
-  const handleDragStart = (e) => {
+  const handleMouseDown = (e) => {
     if (isLocked) return;
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
     };
+    dragStartPos.current = { x: position.x, y: position.y };
   };
 
-  const handleDragMove = (e) => {
-    if (!isDragging || isLocked) return;
-    const newX = e.clientX - dragStartRef.current.x;
-    const newY = e.clientY - dragStartRef.current.y;
-    setPosition({ x: newX, y: newY });
+  const handleMouseMove = (e) => {
+    if (isDragging && !isLocked) {
+      const newX = e.clientX - dragStartRef.current.x;
+      const newY = e.clientY - dragStartRef.current.y;
+      setPosition({ x: newX, y: newY });
+    }
+    if (isResizing && !isLocked) {
+      const deltaX = e.clientX - resizeStartRef.current.x;
+      const deltaY = e.clientY - resizeStartRef.current.y;
+      const newWidth = Math.max(420, resizeStartRef.current.width + deltaX);
+      const newHeight = Math.max(420, resizeStartRef.current.height + deltaY);
+      setSize({ width: newWidth, height: newHeight });
+    }
   };
 
-  const handleDragEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    onUpdate({ ...block, tasks, ...position, ...size });
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      if (
+        dragStartPos.current.x !== position.x ||
+        dragStartPos.current.y !== position.y
+      ) {
+        onUpdate({
+          ...block,
+          tasks,
+          x: position.x,
+          y: position.y,
+          width: size.width,
+          height: size.height,
+        });
+      }
+    }
+    if (isResizing) {
+      setIsResizing(false);
+      onUpdate({
+        ...block,
+        tasks,
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+      });
+    }
   };
 
-  // Обработчики изменения размера
   const handleResizeStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
@@ -344,37 +659,11 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     };
   };
 
-  const handleResizeMove = (e) => {
-    if (!isResizing || isLocked) return;
-    const deltaX = e.clientX - resizeStartRef.current.x;
-    const deltaY = e.clientY - resizeStartRef.current.y;
-    const newWidth = Math.max(420, resizeStartRef.current.width + deltaX);
-    const newHeight = Math.max(420, resizeStartRef.current.height + deltaY);
-    setSize({ width: newWidth, height: newHeight });
-  };
-
-  const handleResizeEnd = () => {
-    if (!isResizing) return;
-    setIsResizing(false);
-    onUpdate({ ...block, tasks, ...position, ...size });
-  };
-
-  // Глобальные обработчики событий
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      handleDragMove(e);
-      handleResizeMove(e);
-    };
-    const handleMouseUp = () => {
-      handleDragEnd();
-      handleResizeEnd();
-    };
-
     if (isDragging || isResizing) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     }
-
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
@@ -409,7 +698,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         <div
           className="card-header card-drag-handle"
           style={{ cursor: isLocked ? "default" : "grab" }}
-          onMouseDown={handleDragStart}
+          onMouseDown={handleMouseDown}
         >
           <div className="card-title">
             <span>{block.icon || "📋"}</span>
@@ -466,26 +755,23 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент виджета часов - только электронные, с правильным перетаскиванием
+// Компонент виджета часов
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
-  const [position, setPosition] = useState({ x: block.x, y: block.y });
+  const [position, setPosition] = useState({
+    x: block.x || 50,
+    y: block.y || 50,
+  });
   const [isDragging, setIsDragging] = useState(false);
-  const dragOffset = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
 
-  // Загрузка позиции из блока при монтировании и обновлении
   useEffect(() => {
     if (block.x !== undefined && block.y !== undefined) {
       setPosition({ x: block.x, y: block.y });
-    } else {
-      const defaultPos = { x: 50, y: 50 };
-      setPosition(defaultPos);
-      onUpdate({ ...block, x: defaultPos.x, y: defaultPos.y });
     }
   }, [block.id]);
 
-  // Обновление времени
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
@@ -493,13 +779,12 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // Обработчики перетаскивания
   const handleMouseDown = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-    dragOffset.current = {
+    dragStartRef.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
     };
@@ -507,22 +792,22 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    const newX = e.clientX - dragOffset.current.x;
-    const newY = e.clientY - dragOffset.current.y;
-    setPosition({ x: newX, y: newY });
+    if (isDragging && !isLocked) {
+      const newX = e.clientX - dragStartRef.current.x;
+      const newY = e.clientY - dragStartRef.current.y;
+      setPosition({ x: newX, y: newY });
+    }
   };
 
   const handleMouseUp = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    // Сохраняем новую позицию в родительский компонент
-    const newPosition = { x: position.x, y: position.y };
-    if (
-      dragStartPos.current.x !== newPosition.x ||
-      dragStartPos.current.y !== newPosition.y
-    ) {
-      onUpdate({ ...block, x: newPosition.x, y: newPosition.y });
+    if (isDragging) {
+      setIsDragging(false);
+      if (
+        dragStartPos.current.x !== position.x ||
+        dragStartPos.current.y !== position.y
+      ) {
+        onUpdate({ ...block, x: position.x, y: position.y });
+      }
     }
   };
 
@@ -564,11 +849,11 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       className="free-card-container"
       style={{
         position: "absolute",
-        left: (position.x || 50) + "px",
-        top: (position.y || 50) + "px",
+        left: position.x + "px",
+        top: position.y + "px",
         width: "180px",
         height: "140px",
-        cursor: isLocked ? "default" : isDragging ? "grabbing" : "grab",
+        cursor: isDragging ? "grabbing" : "grab",
         zIndex: isDragging ? 1000 : 1,
       }}
     >
@@ -665,6 +950,24 @@ const Workspace = ({
       height: 140,
     };
     saveBlocks([...blocks, newClock]);
+    setIsMenuOpen(false);
+  };
+
+  const addNewCalendar = () => {
+    const maxX = Math.max(
+      50,
+      ...blocks.map((b) => (b.x || 50) + (b.width || 350)),
+    );
+    const newCalendar = {
+      id: Date.now(),
+      type: "calendar",
+      title: "Календарь",
+      x: maxX + 20,
+      y: 50,
+      width: 350,
+      height: 320,
+    };
+    saveBlocks([...blocks, newCalendar]);
     setIsMenuOpen(false);
   };
 
@@ -766,6 +1069,10 @@ const Workspace = ({
               <span>🕐</span>
               <span>Добавить часы</span>
             </button>
+            <button className="menu-item" onClick={addNewCalendar}>
+              <span>📅</span>
+              <span>Добавить календарь</span>
+            </button>
             <button className="menu-item" onClick={handleOpenCustomize}>
               <span>🎨</span>
               <span>Настройка цветов</span>
@@ -816,6 +1123,18 @@ const Workspace = ({
               />
             );
           }
+          if (block.type === "calendar") {
+            return (
+              <CalendarWidget
+                key={block.id}
+                block={block}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                colors={colors}
+                isLocked={isLocked}
+              />
+            );
+          }
           return (
             <TaskBlock
               key={block.id}
@@ -842,6 +1161,10 @@ const Workspace = ({
           <button className="menu-item" onClick={addNewClock}>
             <span>🕐</span>
             <span>Добавить часы</span>
+          </button>
+          <button className="menu-item" onClick={addNewCalendar}>
+            <span>📅</span>
+            <span>Добавить календарь</span>
           </button>
           <button className="menu-item" onClick={handleOpenCustomize}>
             <span>🎨</span>
