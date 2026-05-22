@@ -4,13 +4,28 @@ const { useState, useEffect, useRef } = React;
 const saveToLocalStorage = (desktops, currentDesktopId) => {
   localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
   localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
-  console.log("Saved to localStorage:", { desktops, currentDesktopId });
+  console.log("✅ Saved to localStorage:", {
+    desktops: desktops.map((d) => ({
+      id: d.id,
+      blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
+    })),
+    currentDesktopId,
+  });
 };
 
 // Функция загрузки данных из localStorage
 const loadFromLocalStorage = () => {
   const savedDesktops = localStorage.getItem("skyPlanner_desktops");
   const savedCurrentDesktop = localStorage.getItem("skyPlanner_currentDesktop");
+  console.log("📀 Loaded from localStorage:", {
+    savedDesktops: savedDesktops
+      ? JSON.parse(savedDesktops).map((d) => ({
+          id: d.id,
+          blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
+        }))
+      : null,
+    savedCurrentDesktop,
+  });
   return {
     desktops: savedDesktops ? JSON.parse(savedDesktops) : null,
     currentDesktopId: savedCurrentDesktop
@@ -278,7 +293,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач
+// Компонент блока (карточки) задач - ИСПРАВЛЕННОЕ СОХРАНЕНИЕ ПОЗИЦИИ
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
@@ -296,6 +311,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
 
   // Синхронизация с пропсами при изменении блока
   useEffect(() => {
@@ -313,6 +329,14 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       width: newSize.width,
       height: newSize.height,
     };
+    console.log(
+      "💾 Saving block position:",
+      updatedBlock.id,
+      "x:",
+      updatedBlock.x,
+      "y:",
+      updatedBlock.y,
+    );
     onUpdate(updatedBlock);
   };
 
@@ -353,6 +377,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
+    hasMovedRef.current = false;
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX - position.x,
@@ -365,6 +390,12 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging && !isLocked) {
       const newX = e.clientX - dragStartRef.current.x;
       const newY = e.clientY - dragStartRef.current.y;
+      if (
+        Math.abs(newX - dragStartPos.current.x) > 2 ||
+        Math.abs(newY - dragStartPos.current.y) > 2
+      ) {
+        hasMovedRef.current = true;
+      }
       setPosition({ x: newX, y: newY });
     }
     if (isResizing && !isLocked) {
@@ -380,9 +411,11 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (
-        dragStartPos.current.x !== position.x ||
-        dragStartPos.current.y !== position.y
+        hasMovedRef.current &&
+        (dragStartPos.current.x !== position.x ||
+          dragStartPos.current.y !== position.y)
       ) {
+        console.log("📍 Saving position after drag:", position.x, position.y);
         saveChanges(position, size, undefined);
       }
     }
@@ -511,6 +544,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
 
   useEffect(() => {
     setPosition({ x: block.x || 50, y: block.y || 50 });
@@ -524,6 +558,14 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   }, []);
 
   const savePosition = () => {
+    console.log(
+      "💾 Saving clock position:",
+      block.id,
+      "x:",
+      position.x,
+      "y:",
+      position.y,
+    );
     onUpdate({ ...block, x: position.x, y: position.y });
   };
 
@@ -531,6 +573,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
+    hasMovedRef.current = false;
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX - position.x,
@@ -543,6 +586,12 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging && !isLocked) {
       const newX = e.clientX - dragStartRef.current.x;
       const newY = e.clientY - dragStartRef.current.y;
+      if (
+        Math.abs(newX - dragStartPos.current.x) > 2 ||
+        Math.abs(newY - dragStartPos.current.y) > 2
+      ) {
+        hasMovedRef.current = true;
+      }
       setPosition({ x: newX, y: newY });
     }
   };
@@ -551,8 +600,9 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (
-        dragStartPos.current.x !== position.x ||
-        dragStartPos.current.y !== position.y
+        hasMovedRef.current &&
+        (dragStartPos.current.x !== position.x ||
+          dragStartPos.current.y !== position.y)
       ) {
         savePosition();
       }
@@ -661,6 +711,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
 
   useEffect(() => {
     setPosition({ x: block.x || 50, y: block.y || 50 });
@@ -685,6 +736,14 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   ]);
 
   const saveChanges = () => {
+    console.log(
+      "💾 Saving calendar position:",
+      block.id,
+      "x:",
+      position.x,
+      "y:",
+      position.y,
+    );
     onUpdate({
       ...block,
       x: position.x,
@@ -700,6 +759,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
+    hasMovedRef.current = false;
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX - position.x,
@@ -712,6 +772,12 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging && !isLocked) {
       const newX = e.clientX - dragStartRef.current.x;
       const newY = e.clientY - dragStartRef.current.y;
+      if (
+        Math.abs(newX - dragStartPos.current.x) > 2 ||
+        Math.abs(newY - dragStartPos.current.y) > 2
+      ) {
+        hasMovedRef.current = true;
+      }
       setPosition({ x: newX, y: newY });
     }
     if (isResizing && !isLocked) {
@@ -727,8 +793,9 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (
-        dragStartPos.current.x !== position.x ||
-        dragStartPos.current.y !== position.y
+        hasMovedRef.current &&
+        (dragStartPos.current.x !== position.x ||
+          dragStartPos.current.y !== position.y)
       ) {
         saveChanges();
       }
@@ -1019,8 +1086,15 @@ const Workspace = ({
   };
 
   const updateBlock = (updatedBlock) => {
-    saveBlocks(
-      blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
+    console.log(
+      "🔄 updateBlock called:",
+      updatedBlock.id,
+      "position:",
+      updatedBlock.x,
+      updatedBlock.y,
+    );
+    setBlocks((prev) =>
+      prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
     );
   };
 
@@ -1450,6 +1524,7 @@ const App = () => {
   };
 
   const updateDesktop = (updatedDesktop) => {
+    console.log("🔄 updateDesktop called:", updatedDesktop.id);
     setDesktops((prev) =>
       prev.map((d) => (d.id === updatedDesktop.id ? updatedDesktop : d)),
     );
