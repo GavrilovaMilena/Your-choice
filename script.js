@@ -625,15 +625,25 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
 // Компонент виджета календаря
 const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (block.currentDate) {
+      return new Date(block.currentDate);
+    }
+    return new Date();
+  });
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (block.selectedDate) {
+      return new Date(block.selectedDate);
+    }
+    return new Date();
+  });
   const [position, setPosition] = useState({
     x: block.x || 50,
     y: block.y || 50,
   });
   const [size, setSize] = useState({
-    width: Math.max(370, block.width || 370),
-    height: Math.max(360, block.height || 360),
+    width: Math.max(320, block.width || 320),
+    height: Math.max(280, block.height || 280),
   });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -642,14 +652,34 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
+    if (block.currentDate !== currentDate.toISOString()) {
+      onUpdate({
+        ...block,
+        currentDate: currentDate.toISOString(),
+        selectedDate: selectedDate.toISOString(),
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+      });
+    }
+  }, [currentDate, selectedDate]);
+
+  useEffect(() => {
     if (block.x !== undefined && block.y !== undefined) {
       setPosition({ x: block.x, y: block.y });
     }
     if (block.width !== undefined && block.height !== undefined) {
       setSize({
-        width: Math.max(370, block.width),
-        height: Math.max(360, block.height),
+        width: Math.max(320, block.width),
+        height: Math.max(280, block.height),
       });
+    }
+    if (block.currentDate) {
+      setCurrentDate(new Date(block.currentDate));
+    }
+    if (block.selectedDate) {
+      setSelectedDate(new Date(block.selectedDate));
     }
   }, [block.id]);
 
@@ -674,8 +704,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isResizing && !isLocked) {
       const deltaX = e.clientX - resizeStartRef.current.x;
       const deltaY = e.clientY - resizeStartRef.current.y;
-      const newWidth = Math.max(370, resizeStartRef.current.width + deltaX);
-      const newHeight = Math.max(360, resizeStartRef.current.height + deltaY);
+      const newWidth = Math.max(320, resizeStartRef.current.width + deltaX);
+      const newHeight = Math.max(280, resizeStartRef.current.height + deltaY);
       setSize({ width: newWidth, height: newHeight });
     }
   };
@@ -693,6 +723,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           y: position.y,
           width: size.width,
           height: size.height,
+          currentDate: currentDate.toISOString(),
+          selectedDate: selectedDate.toISOString(),
         });
       }
     }
@@ -704,6 +736,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         y: position.y,
         width: size.width,
         height: size.height,
+        currentDate: currentDate.toISOString(),
+        selectedDate: selectedDate.toISOString(),
       });
     }
   };
@@ -790,6 +824,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           key={day}
           className={`calendar-day ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`}
           onClick={() => handleDateClick(day)}
+          style={{ color: isSelected ? "white" : colors.text }}
         >
           {day}
         </div>,
@@ -852,19 +887,32 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         )}
         <div className="calendar-widget">
           <div className="calendar-header">
-            <button className="calendar-nav-btn" onClick={handlePrevMonth}>
+            <button
+              className="calendar-nav-btn"
+              onClick={handlePrevMonth}
+              style={{ color: colors.text }}
+            >
               ◀
             </button>
-            <span className="calendar-month-year">
+            <span
+              className="calendar-month-year"
+              style={{ color: colors.text }}
+            >
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </span>
-            <button className="calendar-nav-btn" onClick={handleNextMonth}>
+            <button
+              className="calendar-nav-btn"
+              onClick={handleNextMonth}
+              style={{ color: colors.text }}
+            >
               ▶
             </button>
           </div>
           <div className="calendar-weekdays">
             {weekDays.map((day) => (
-              <div key={day}>{day}</div>
+              <div key={day} style={{ color: colors.text }}>
+                {day}
+              </div>
             ))}
           </div>
           <div className="calendar-days">{renderCalendar()}</div>
@@ -949,7 +997,7 @@ const Workspace = ({
   const addNewCalendar = () => {
     const maxX = Math.max(
       50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 370)),
+      ...blocks.map((b) => (b.x || 50) + (b.width || 320)),
     );
     const newCalendar = {
       id: Date.now(),
@@ -957,8 +1005,10 @@ const Workspace = ({
       title: "Календарь",
       x: maxX + 20,
       y: 50,
-      width: 370,
-      height: 360,
+      width: 320,
+      height: 280,
+      currentDate: new Date().toISOString(),
+      selectedDate: new Date().toISOString(),
     };
     saveBlocks([...blocks, newCalendar]);
     setIsMenuOpen(false);
