@@ -259,7 +259,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач
+// Компонент блока (карточки) задач - с правильным сохранением позиции
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
@@ -278,6 +278,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
 
+  // Синхронизация с блоком при загрузке
   useEffect(() => {
     if (block.x !== undefined && block.y !== undefined) {
       setPosition({ x: block.x, y: block.y });
@@ -288,7 +289,10 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         height: Math.max(420, block.height),
       });
     }
-  }, [block.id]);
+    if (block.tasks) {
+      setTasks(block.tasks);
+    }
+  }, [block.id, block.x, block.y, block.width, block.height, block.tasks]);
 
   const saveTasks = (newTasks) => {
     setTasks(newTasks);
@@ -507,7 +511,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (block.x !== undefined && block.y !== undefined) {
       setPosition({ x: block.x, y: block.y });
     }
-  }, [block.id]);
+  }, [block.id, block.x, block.y]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -651,6 +655,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
 
+  // Сохраняем даты в блок при изменении
   useEffect(() => {
     if (block.currentDate !== currentDate.toISOString()) {
       onUpdate({
@@ -681,7 +686,15 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (block.selectedDate) {
       setSelectedDate(new Date(block.selectedDate));
     }
-  }, [block.id]);
+  }, [
+    block.id,
+    block.x,
+    block.y,
+    block.width,
+    block.height,
+    block.currentDate,
+    block.selectedDate,
+  ]);
 
   const handleMouseDown = (e) => {
     if (isLocked) return;
