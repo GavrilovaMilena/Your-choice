@@ -259,7 +259,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач - с правильным сохранением позиции
+// Компонент блока (карточки) задач - ИСПРАВЛЕННОЕ СОХРАНЕНИЕ ПОЗИЦИИ
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
@@ -278,48 +278,51 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
 
-  // Синхронизация с блоком при загрузке
+  // Загрузка сохраненных данных из блока
   useEffect(() => {
-    if (block.x !== undefined && block.y !== undefined) {
-      setPosition({ x: block.x, y: block.y });
-    }
-    if (block.width !== undefined && block.height !== undefined) {
-      setSize({
-        width: Math.max(420, block.width),
-        height: Math.max(420, block.height),
-      });
-    }
-    if (block.tasks) {
-      setTasks(block.tasks);
-    }
+    setPosition({ x: block.x || 50, y: block.y || 50 });
+    setSize({
+      width: Math.max(420, block.width || 420),
+      height: Math.max(420, block.height || 420),
+    });
+    setTasks(block.tasks || []);
   }, [block.id, block.x, block.y, block.width, block.height, block.tasks]);
 
-  const saveTasks = (newTasks) => {
-    setTasks(newTasks);
-    onUpdate({
+  const saveChanges = (newPosition, newSize, newTasks) => {
+    const updatedBlock = {
       ...block,
-      tasks: newTasks,
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-    });
+      tasks: newTasks !== undefined ? newTasks : tasks,
+      x: newPosition.x,
+      y: newPosition.y,
+      width: newSize.width,
+      height: newSize.height,
+    };
+    onUpdate(updatedBlock);
   };
 
   const addTask = () => {
     if (!newTask.trim()) return;
-    saveTasks([...tasks, { id: Date.now(), text: newTask, completed: false }]);
+    const newTasks = [
+      ...tasks,
+      { id: Date.now(), text: newTask, completed: false },
+    ];
+    setTasks(newTasks);
+    saveChanges(position, size, newTasks);
     setNewTask("");
   };
 
   const toggleTask = (id) => {
-    saveTasks(
-      tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
+    const newTasks = tasks.map((t) =>
+      t.id === id ? { ...t, completed: !t.completed } : t,
     );
+    setTasks(newTasks);
+    saveChanges(position, size, newTasks);
   };
 
   const deleteTask = (id) => {
-    saveTasks(tasks.filter((t) => t.id !== id));
+    const newTasks = tasks.filter((t) => t.id !== id);
+    setTasks(newTasks);
+    saveChanges(position, size, newTasks);
   };
 
   useEffect(() => {
@@ -364,26 +367,12 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         dragStartPos.current.x !== position.x ||
         dragStartPos.current.y !== position.y
       ) {
-        onUpdate({
-          ...block,
-          tasks,
-          x: position.x,
-          y: position.y,
-          width: size.width,
-          height: size.height,
-        });
+        saveChanges(position, size, undefined);
       }
     }
     if (isResizing) {
       setIsResizing(false);
-      onUpdate({
-        ...block,
-        tasks,
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-      });
+      saveChanges(position, size, undefined);
     }
   };
 
@@ -409,7 +398,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing]);
+  }, [isDragging, isResizing, position, size]);
 
   return (
     <div
@@ -508,9 +497,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (block.x !== undefined && block.y !== undefined) {
-      setPosition({ x: block.x, y: block.y });
-    }
+    setPosition({ x: block.x || 50, y: block.y || 50 });
   }, [block.id, block.x, block.y]);
 
   useEffect(() => {
@@ -561,7 +548,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, position]);
 
   const renderDigitalClock = () => {
     const hours = time.getHours().toString().padStart(2, "0");
@@ -655,31 +642,12 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
 
-  // Сохраняем даты в блок при изменении
   useEffect(() => {
-    if (block.currentDate !== currentDate.toISOString()) {
-      onUpdate({
-        ...block,
-        currentDate: currentDate.toISOString(),
-        selectedDate: selectedDate.toISOString(),
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-      });
-    }
-  }, [currentDate, selectedDate]);
-
-  useEffect(() => {
-    if (block.x !== undefined && block.y !== undefined) {
-      setPosition({ x: block.x, y: block.y });
-    }
-    if (block.width !== undefined && block.height !== undefined) {
-      setSize({
-        width: Math.max(320, block.width),
-        height: Math.max(280, block.height),
-      });
-    }
+    setPosition({ x: block.x || 50, y: block.y || 50 });
+    setSize({
+      width: Math.max(320, block.width || 320),
+      height: Math.max(280, block.height || 280),
+    });
     if (block.currentDate) {
       setCurrentDate(new Date(block.currentDate));
     }
@@ -695,6 +663,18 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     block.currentDate,
     block.selectedDate,
   ]);
+
+  const saveChanges = () => {
+    onUpdate({
+      ...block,
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
+      currentDate: currentDate.toISOString(),
+      selectedDate: selectedDate.toISOString(),
+    });
+  };
 
   const handleMouseDown = (e) => {
     if (isLocked) return;
@@ -730,28 +710,12 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         dragStartPos.current.x !== position.x ||
         dragStartPos.current.y !== position.y
       ) {
-        onUpdate({
-          ...block,
-          x: position.x,
-          y: position.y,
-          width: size.width,
-          height: size.height,
-          currentDate: currentDate.toISOString(),
-          selectedDate: selectedDate.toISOString(),
-        });
+        saveChanges();
       }
     }
     if (isResizing) {
       setIsResizing(false);
-      onUpdate({
-        ...block,
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-        currentDate: currentDate.toISOString(),
-        selectedDate: selectedDate.toISOString(),
-      });
+      saveChanges();
     }
   };
 
@@ -777,7 +741,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing]);
+  }, [isDragging, isResizing, position, size]);
 
   const getDaysInMonth = (year, month) => {
     return new Date(year, month + 1, 0).getDate();
@@ -791,12 +755,14 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
     );
+    saveChanges();
   };
 
   const handleNextMonth = () => {
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
     );
+    saveChanges();
   };
 
   const handleDateClick = (day) => {
@@ -806,6 +772,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       day,
     );
     setSelectedDate(newDate);
+    saveChanges();
   };
 
   const renderCalendar = () => {
