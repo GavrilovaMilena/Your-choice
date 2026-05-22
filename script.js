@@ -7,31 +7,18 @@ const saveToLocalStorage = (desktops, currentDesktopId) => {
   console.log("✅ Saved to localStorage:", {
     desktops: desktops.map((d) => ({
       id: d.id,
-      blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
+      name: d.name,
+      blocks: d.blocks?.map((b) => ({
+        id: b.id,
+        type: b.type,
+        x: b.x,
+        y: b.y,
+        width: b.width,
+        height: b.height,
+      })),
     })),
     currentDesktopId,
   });
-};
-
-// Функция загрузки данных из localStorage
-const loadFromLocalStorage = () => {
-  const savedDesktops = localStorage.getItem("skyPlanner_desktops");
-  const savedCurrentDesktop = localStorage.getItem("skyPlanner_currentDesktop");
-  console.log("📀 Loaded from localStorage:", {
-    savedDesktops: savedDesktops
-      ? JSON.parse(savedDesktops).map((d) => ({
-          id: d.id,
-          blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-        }))
-      : null,
-    savedCurrentDesktop,
-  });
-  return {
-    desktops: savedDesktops ? JSON.parse(savedDesktops) : null,
-    currentDesktopId: savedCurrentDesktop
-      ? parseInt(savedCurrentDesktop)
-      : null,
-  };
 };
 
 // Кастомный диалог для ввода текста (переименование)
@@ -315,12 +302,33 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   // Синхронизация с пропсами при изменении блока
   useEffect(() => {
-    setPosition({ x: block.x || 50, y: block.y || 50 });
+    console.log(
+      "🎯 TaskBlock received position from props:",
+      block.id,
+      "x:",
+      block.x,
+      "y:",
+      block.y,
+    );
+    setPosition({
+      x: block.x !== undefined ? block.x : 50,
+      y: block.y !== undefined ? block.y : 50,
+    });
     setSize({ width: block.width || 420, height: block.height || 420 });
     setTasks(block.tasks || []);
   }, [block.id, block.x, block.y, block.width, block.height]);
 
   const saveChanges = (newPosition, newSize, newTasks) => {
+    console.log(
+      "💾 Saving block position:",
+      block.id,
+      "old x/y:",
+      block.x,
+      block.y,
+      "new x/y:",
+      newPosition.x,
+      newPosition.y,
+    );
     const updatedBlock = {
       ...block,
       tasks: newTasks !== undefined ? newTasks : tasks,
@@ -329,14 +337,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       width: newSize.width,
       height: newSize.height,
     };
-    console.log(
-      "💾 Saving block position:",
-      updatedBlock.id,
-      "x:",
-      updatedBlock.x,
-      "y:",
-      updatedBlock.y,
-    );
     onUpdate(updatedBlock);
   };
 
@@ -547,7 +547,18 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const hasMovedRef = useRef(false);
 
   useEffect(() => {
-    setPosition({ x: block.x || 50, y: block.y || 50 });
+    console.log(
+      "🎯 ClockWidget received position from props:",
+      block.id,
+      "x:",
+      block.x,
+      "y:",
+      block.y,
+    );
+    setPosition({
+      x: block.x !== undefined ? block.x : 50,
+      y: block.y !== undefined ? block.y : 50,
+    });
   }, [block.id, block.x, block.y]);
 
   useEffect(() => {
@@ -714,7 +725,18 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const hasMovedRef = useRef(false);
 
   useEffect(() => {
-    setPosition({ x: block.x || 50, y: block.y || 50 });
+    console.log(
+      "🎯 CalendarWidget received position from props:",
+      block.id,
+      "x:",
+      block.x,
+      "y:",
+      block.y,
+    );
+    setPosition({
+      x: block.x !== undefined ? block.x : 50,
+      y: block.y !== undefined ? block.y : 50,
+    });
     setSize({
       width: block.width || 320,
       height: block.height || 280,
@@ -1435,17 +1457,73 @@ const App = () => {
 
   // Загрузка данных при монтировании
   useEffect(() => {
-    const { desktops: savedDesktops, currentDesktopId: savedCurrentDesktopId } =
-      loadFromLocalStorage();
+    const savedDesktops = localStorage.getItem("skyPlanner_desktops");
+    const savedCurrentDesktop = localStorage.getItem(
+      "skyPlanner_currentDesktop",
+    );
 
-    if (savedDesktops && savedDesktops.length > 0) {
-      setDesktops(savedDesktops);
+    console.log("📀 Loaded from localStorage - raw data:", savedDesktops);
+
+    if (savedDesktops) {
+      const parsed = JSON.parse(savedDesktops);
+      console.log(
+        "📀 Parsed desktops:",
+        parsed.map((d) => ({
+          id: d.id,
+          name: d.name,
+          blocks: d.blocks?.map((b) => ({
+            id: b.id,
+            type: b.type,
+            x: b.x,
+            y: b.y,
+            width: b.width,
+            height: b.height,
+          })),
+        })),
+      );
+
+      // Убеждаемся, что у каждого блока есть x, y, width, height
+      const desktopsWithDefaults = parsed.map((d) => ({
+        ...d,
+        blocks:
+          d.blocks?.map((b) => ({
+            ...b,
+            x: b.x !== undefined ? b.x : 50,
+            y: b.y !== undefined ? b.y : 50,
+            width:
+              b.width !== undefined
+                ? b.width
+                : b.type === "clock"
+                  ? 180
+                  : b.type === "calendar"
+                    ? 320
+                    : 420,
+            height:
+              b.height !== undefined
+                ? b.height
+                : b.type === "clock"
+                  ? 140
+                  : b.type === "calendar"
+                    ? 280
+                    : 420,
+          })) || [],
+        colors: d.colors || {
+          bgPage: "#f0f8ff",
+          text: "#1e2a3e",
+          cardBg: "#ffffff",
+          accent: "#87CEEB",
+        },
+        isLocked: d.isLocked || false,
+      }));
+
+      setDesktops(desktopsWithDefaults);
       setShowStart(false);
-      if (
-        savedCurrentDesktopId &&
-        savedDesktops.some((d) => d.id === savedCurrentDesktopId)
-      ) {
-        setCurrentDesktopId(savedCurrentDesktopId);
+
+      if (savedCurrentDesktop) {
+        const currentId = parseInt(savedCurrentDesktop);
+        if (desktopsWithDefaults.some((d) => d.id === currentId)) {
+          setCurrentDesktopId(currentId);
+        }
       }
     } else {
       setShowStart(true);
@@ -1454,8 +1532,16 @@ const App = () => {
 
   // Сохранение при каждом изменении
   useEffect(() => {
-    if (!showStart) {
-      saveToLocalStorage(desktops, currentDesktopId);
+    if (!showStart && desktops.length > 0) {
+      console.log(
+        "✅ Saving to localStorage - desktops:",
+        desktops.map((d) => ({
+          id: d.id,
+          blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
+        })),
+      );
+      localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
+      localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
     }
   }, [desktops, currentDesktopId, showStart]);
 
