@@ -1,34 +1,27 @@
 const { useState, useEffect, useRef } = React;
 
-// ========== ФУНКЦИИ РАБОТЫ С ХРАНИЛИЩЕМ ==========
-const STORAGE_KEY = "skyPlanner_v4";
+// Ключ для localStorage
+const STORAGE_KEY = "planner_data";
 
-const saveToLocalStorage = (desktops, currentDesktopId) => {
-  const dataToSave = {
-    desktops: desktops,
-    currentDesktopId: currentDesktopId,
-    version: "4.0",
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-  console.log(
-    "💾 SAVED to localStorage:",
-    JSON.parse(JSON.stringify(dataToSave)),
-  );
+// Сохранение данных
+const saveData = (desktops, currentDesktopId) => {
+  const data = { desktops, currentDesktopId };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  console.log("💾 Сохранено:", data);
 };
 
-const loadFromLocalStorage = () => {
-  const savedData = localStorage.getItem(STORAGE_KEY);
-  console.log("📀 LOADED from localStorage:", savedData);
-
-  if (savedData) {
+// Загрузка данных
+const loadData = () => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  console.log("📀 Загружено:", saved);
+  if (saved) {
     try {
-      const parsed = JSON.parse(savedData);
+      const parsed = JSON.parse(saved);
       return {
         desktops: parsed.desktops || [],
         currentDesktopId: parsed.currentDesktopId || null,
       };
     } catch (e) {
-      console.error("Error parsing:", e);
       return { desktops: [], currentDesktopId: null };
     }
   }
@@ -38,9 +31,7 @@ const loadFromLocalStorage = () => {
 // ========== ДИАЛОГИ ==========
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
   const [value, setValue] = useState(defaultValue || "");
-  useEffect(() => {
-    setValue(defaultValue || "");
-  }, [defaultValue, isOpen]);
+  useEffect(() => setValue(defaultValue || ""), [defaultValue, isOpen]);
   if (!isOpen) return null;
   return (
     <div className="custom-dialog-overlay" onClick={onCancel}>
@@ -279,45 +270,40 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
-  const [position, setPosition] = useState({
-    x: block.x || 50,
-    y: block.y || 50,
-  });
-  const [size, setSize] = useState({
-    width: block.width || 420,
-    height: block.height || 420,
-  });
+  const [x, setX] = useState(block.x || 50);
+  const [y, setY] = useState(block.y || 50);
+  const [width, setWidth] = useState(block.width || 420);
+  const [height, setHeight] = useState(block.height || 420);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const taskListRef = useRef(null);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const hasMovedRef = useRef(false);
+  const dragStartX = useRef(0),
+    dragStartY = useRef(0);
+  const dragStartPosX = useRef(0),
+    dragStartPosY = useRef(0);
+  const resizeStartWidth = useRef(0),
+    resizeStartHeight = useRef(0);
+  const resizeStartMouseX = useRef(0),
+    resizeStartMouseY = useRef(0);
 
   // Синхронизация с пропсами
   useEffect(() => {
-    setPosition({
-      x: block.x !== undefined ? block.x : 50,
-      y: block.y !== undefined ? block.y : 50,
-    });
-    setSize({
-      width: block.width !== undefined ? block.width : 420,
-      height: block.height !== undefined ? block.height : 420,
-    });
+    setX(block.x !== undefined ? block.x : 50);
+    setY(block.y !== undefined ? block.y : 50);
+    setWidth(block.width !== undefined ? block.width : 420);
+    setHeight(block.height !== undefined ? block.height : 420);
     setTasks(block.tasks || []);
   }, [block.id, block.x, block.y, block.width, block.height]);
 
-  const saveChanges = (newPosition, newSize, newTasks) => {
-    const updatedBlock = {
+  const saveChanges = (newX, newY, newWidth, newHeight, newTasks) => {
+    onUpdate({
       ...block,
       tasks: newTasks !== undefined ? newTasks : tasks,
-      x: newPosition.x,
-      y: newPosition.y,
-      width: newSize.width,
-      height: newSize.height,
-    };
-    onUpdate(updatedBlock);
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+    });
   };
 
   const addTask = () => {
@@ -327,7 +313,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       { id: Date.now(), text: newTask, completed: false },
     ];
     setTasks(newTasks);
-    saveChanges(position, size, newTasks);
+    saveChanges(x, y, width, height, newTasks);
     setNewTask("");
   };
 
@@ -336,13 +322,13 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       t.id === id ? { ...t, completed: !t.completed } : t,
     );
     setTasks(newTasks);
-    saveChanges(position, size, newTasks);
+    saveChanges(x, y, width, height, newTasks);
   };
 
   const deleteTask = (id) => {
     const newTasks = tasks.filter((t) => t.id !== id);
     setTasks(newTasks);
-    saveChanges(position, size, newTasks);
+    saveChanges(x, y, width, height, newTasks);
   };
 
   useEffect(() => {
@@ -352,86 +338,95 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           ? "auto"
           : "hidden";
     }
-  }, [tasks, size.height]);
+  }, [tasks, height]);
 
-  const handleMouseDown = (e) => {
+  // Drag handlers
+  const handleDragStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
-    hasMovedRef.current = false;
+    dragStartX.current = e.clientX - x;
+    dragStartY.current = e.clientY - y;
+    dragStartPosX.current = x;
+    dragStartPosY.current = y;
     setIsDragging(true);
-    dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-    dragStartPos.current = { x: position.x, y: position.y };
   };
 
-  const handleMouseMove = (e) => {
-    if (isDragging && !isLocked) {
-      const newX = e.clientX - dragStartRef.current.x;
-      const newY = e.clientY - dragStartRef.current.y;
-      if (
-        Math.abs(newX - dragStartPos.current.x) > 2 ||
-        Math.abs(newY - dragStartPos.current.y) > 2
-      )
-        hasMovedRef.current = true;
-      setPosition({ x: newX, y: newY });
-    }
-    if (isResizing && !isLocked) {
-      const deltaX = e.clientX - resizeStartRef.current.x;
-      const deltaY = e.clientY - resizeStartRef.current.y;
-      setSize({
-        width: Math.max(420, resizeStartRef.current.width + deltaX),
-        height: Math.max(420, resizeStartRef.current.height + deltaY),
-      });
-    }
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    const newX = e.clientX - dragStartX.current;
+    const newY = e.clientY - dragStartY.current;
+    setX(newX);
+    setY(newY);
   };
 
-  const handleMouseUp = () => {
+  const handleDragEnd = () => {
     if (isDragging) {
       setIsDragging(false);
-      if (hasMovedRef.current) saveChanges(position, size, undefined);
-    }
-    if (isResizing) {
-      setIsResizing(false);
-      saveChanges(position, size, undefined);
+      if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        saveChanges(x, y, width, height, undefined);
+      }
     }
   };
 
+  // Resize handlers
   const handleResizeStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
+    resizeStartWidth.current = width;
+    resizeStartHeight.current = height;
+    resizeStartMouseX.current = e.clientX;
+    resizeStartMouseY.current = e.clientY;
     setIsResizing(true);
-    resizeStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      width: size.width,
-      height: size.height,
-    };
   };
 
+  const handleResizeMove = (e) => {
+    if (!isResizing) return;
+    const deltaX = e.clientX - resizeStartMouseX.current;
+    const deltaY = e.clientY - resizeStartMouseY.current;
+    const newWidth = Math.max(420, resizeStartWidth.current + deltaX);
+    const newHeight = Math.max(420, resizeStartHeight.current + deltaY);
+    setWidth(newWidth);
+    setHeight(newHeight);
+  };
+
+  const handleResizeEnd = () => {
+    if (isResizing) {
+      setIsResizing(false);
+      saveChanges(x, y, width, height, undefined);
+    }
+  };
+
+  // Global event listeners
   useEffect(() => {
     if (isDragging || isResizing) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      const moveHandler = (e) => {
+        if (isDragging) handleDragMove(e);
+        if (isResizing) handleResizeMove(e);
+      };
+      const upHandler = () => {
+        if (isDragging) handleDragEnd();
+        if (isResizing) handleResizeEnd();
+      };
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
     }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging, isResizing]);
+  }, [isDragging, isResizing, x, y, width, height]);
 
   return (
     <div
       className="free-card-container"
       style={{
         position: "absolute",
-        left: position.x + "px",
-        top: position.y + "px",
-        width: size.width + "px",
-        height: size.height + "px",
+        left: x + "px",
+        top: y + "px",
+        width: width + "px",
+        height: height + "px",
         cursor: isDragging ? "grabbing" : "default",
         zIndex: isDragging || isResizing ? 1000 : 1,
       }}
@@ -451,7 +446,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         <div
           className="card-header card-drag-handle"
           style={{ cursor: isLocked ? "default" : "grab" }}
-          onMouseDown={handleMouseDown}
+          onMouseDown={handleDragStart}
         >
           <div className="card-title">
             <span>{block.icon || "📋"}</span>
@@ -511,20 +506,17 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 // ========== ЧАСЫ ==========
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
-  const [position, setPosition] = useState({
-    x: block.x || 50,
-    y: block.y || 50,
-  });
+  const [x, setX] = useState(block.x || 50);
+  const [y, setY] = useState(block.y || 50);
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const hasMovedRef = useRef(false);
+  const dragStartX = useRef(0),
+    dragStartY = useRef(0);
+  const dragStartPosX = useRef(0),
+    dragStartPosY = useRef(0);
 
   useEffect(() => {
-    setPosition({
-      x: block.x !== undefined ? block.x : 50,
-      y: block.y !== undefined ? block.y : 50,
-    });
+    setX(block.x !== undefined ? block.x : 50);
+    setY(block.y !== undefined ? block.y : 50);
   }, [block.id, block.x, block.y]);
 
   useEffect(() => {
@@ -533,52 +525,47 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   }, []);
 
   const savePosition = () => {
-    onUpdate({ ...block, x: position.x, y: position.y });
+    onUpdate({ ...block, x, y });
   };
 
   const handleMouseDown = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
-    hasMovedRef.current = false;
+    dragStartX.current = e.clientX - x;
+    dragStartY.current = e.clientY - y;
+    dragStartPosX.current = x;
+    dragStartPosY.current = y;
     setIsDragging(true);
-    dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-    dragStartPos.current = { x: position.x, y: position.y };
   };
 
   const handleMouseMove = (e) => {
-    if (isDragging && !isLocked) {
-      const newX = e.clientX - dragStartRef.current.x;
-      const newY = e.clientY - dragStartRef.current.y;
-      if (
-        Math.abs(newX - dragStartPos.current.x) > 2 ||
-        Math.abs(newY - dragStartPos.current.y) > 2
-      )
-        hasMovedRef.current = true;
-      setPosition({ x: newX, y: newY });
-    }
+    if (!isDragging) return;
+    setX(e.clientX - dragStartX.current);
+    setY(e.clientY - dragStartY.current);
   };
 
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      if (hasMovedRef.current) savePosition();
+      if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        savePosition();
+      }
     }
   };
 
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      const moveHandler = (e) => handleMouseMove(e);
+      const upHandler = () => handleMouseUp();
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
     }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging]);
+  }, [isDragging, x, y]);
 
   const renderDigitalClock = () => {
     const hours = time.getHours().toString().padStart(2, "0");
@@ -606,8 +593,8 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       className="free-card-container"
       style={{
         position: "absolute",
-        left: position.x + "px",
-        top: position.y + "px",
+        left: x + "px",
+        top: y + "px",
         width: block.width || 180,
         height: block.height || 140,
         cursor: isDragging ? "grabbing" : "grab",
@@ -651,30 +638,26 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [selectedDate, setSelectedDate] = useState(() =>
     block.selectedDate ? new Date(block.selectedDate) : new Date(),
   );
-  const [position, setPosition] = useState({
-    x: block.x || 50,
-    y: block.y || 50,
-  });
-  const [size, setSize] = useState({
-    width: block.width || 320,
-    height: block.height || 280,
-  });
+  const [x, setX] = useState(block.x || 50);
+  const [y, setY] = useState(block.y || 50);
+  const [width, setWidth] = useState(block.width || 320);
+  const [height, setHeight] = useState(block.height || 280);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const hasMovedRef = useRef(false);
+  const dragStartX = useRef(0),
+    dragStartY = useRef(0);
+  const dragStartPosX = useRef(0),
+    dragStartPosY = useRef(0);
+  const resizeStartWidth = useRef(0),
+    resizeStartHeight = useRef(0);
+  const resizeStartMouseX = useRef(0),
+    resizeStartMouseY = useRef(0);
 
   useEffect(() => {
-    setPosition({
-      x: block.x !== undefined ? block.x : 50,
-      y: block.y !== undefined ? block.y : 50,
-    });
-    setSize({
-      width: block.width !== undefined ? block.width : 320,
-      height: block.height !== undefined ? block.height : 280,
-    });
+    setX(block.x !== undefined ? block.x : 50);
+    setY(block.y !== undefined ? block.y : 50);
+    setWidth(block.width !== undefined ? block.width : 320);
+    setHeight(block.height !== undefined ? block.height : 280);
     if (block.currentDate) setCurrentDate(new Date(block.currentDate));
     if (block.selectedDate) setSelectedDate(new Date(block.selectedDate));
   }, [block.id, block.x, block.y, block.width, block.height]);
@@ -682,83 +665,88 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const saveChanges = () => {
     onUpdate({
       ...block,
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
+      x,
+      y,
+      width,
+      height,
       currentDate: currentDate.toISOString(),
       selectedDate: selectedDate.toISOString(),
     });
   };
 
-  const handleMouseDown = (e) => {
+  // Drag handlers
+  const handleDragStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
-    hasMovedRef.current = false;
+    dragStartX.current = e.clientX - x;
+    dragStartY.current = e.clientY - y;
+    dragStartPosX.current = x;
+    dragStartPosY.current = y;
     setIsDragging(true);
-    dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-    dragStartPos.current = { x: position.x, y: position.y };
   };
 
-  const handleMouseMove = (e) => {
-    if (isDragging && !isLocked) {
-      const newX = e.clientX - dragStartRef.current.x;
-      const newY = e.clientY - dragStartRef.current.y;
-      if (
-        Math.abs(newX - dragStartPos.current.x) > 2 ||
-        Math.abs(newY - dragStartPos.current.y) > 2
-      )
-        hasMovedRef.current = true;
-      setPosition({ x: newX, y: newY });
-    }
-    if (isResizing && !isLocked) {
-      const deltaX = e.clientX - resizeStartRef.current.x;
-      const deltaY = e.clientY - resizeStartRef.current.y;
-      setSize({
-        width: Math.max(320, resizeStartRef.current.width + deltaX),
-        height: Math.max(280, resizeStartRef.current.height + deltaY),
-      });
-    }
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    setX(e.clientX - dragStartX.current);
+    setY(e.clientY - dragStartY.current);
   };
 
-  const handleMouseUp = () => {
+  const handleDragEnd = () => {
     if (isDragging) {
       setIsDragging(false);
-      if (hasMovedRef.current) saveChanges();
+      if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        saveChanges();
+      }
     }
+  };
+
+  // Resize handlers
+  const handleResizeStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeStartWidth.current = width;
+    resizeStartHeight.current = height;
+    resizeStartMouseX.current = e.clientX;
+    resizeStartMouseY.current = e.clientY;
+    setIsResizing(true);
+  };
+
+  const handleResizeMove = (e) => {
+    if (!isResizing) return;
+    const deltaX = e.clientX - resizeStartMouseX.current;
+    const deltaY = e.clientY - resizeStartMouseY.current;
+    setWidth(Math.max(320, resizeStartWidth.current + deltaX));
+    setHeight(Math.max(280, resizeStartHeight.current + deltaY));
+  };
+
+  const handleResizeEnd = () => {
     if (isResizing) {
       setIsResizing(false);
       saveChanges();
     }
   };
 
-  const handleResizeStart = (e) => {
-    if (isLocked) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    resizeStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      width: size.width,
-      height: size.height,
-    };
-  };
-
+  // Global event listeners
   useEffect(() => {
     if (isDragging || isResizing) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      const moveHandler = (e) => {
+        if (isDragging) handleDragMove(e);
+        if (isResizing) handleResizeMove(e);
+      };
+      const upHandler = () => {
+        if (isDragging) handleDragEnd();
+        if (isResizing) handleResizeEnd();
+      };
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
     }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging, isResizing]);
+  }, [isDragging, isResizing, x, y, width, height]);
 
   const getDaysInMonth = (year, month) =>
     new Date(year, month + 1, 0).getDate();
@@ -837,10 +825,10 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       className="free-card-container"
       style={{
         position: "absolute",
-        left: position.x + "px",
-        top: position.y + "px",
-        width: size.width + "px",
-        height: size.height + "px",
+        left: x + "px",
+        top: y + "px",
+        width: width + "px",
+        height: height + "px",
         cursor: isDragging ? "grabbing" : "default",
         zIndex: isDragging || isResizing ? 1000 : 1,
       }}
@@ -854,7 +842,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           overflow: "hidden",
           cursor: isLocked ? "default" : "grab",
         }}
-        onMouseDown={handleMouseDown}
+        onMouseDown={handleDragStart}
       >
         {!isLocked && (
           <button
@@ -932,12 +920,12 @@ const Workspace = ({
     }
   }, []);
 
-  const saveBlocks = (newBlocks) => {
+  const updateBlocks = (newBlocks) => {
     setBlocks(newBlocks);
     onUpdate({ ...desktop, blocks: newBlocks });
   };
 
-  const addNewBlock = () => {
+  const addTaskBlock = () => {
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
@@ -953,16 +941,16 @@ const Workspace = ({
       width: 420,
       height: 420,
     };
-    saveBlocks([...blocks, newBlock]);
+    updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
-  const addNewClock = () => {
+  const addClockBlock = () => {
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
     );
-    const newClock = {
+    const newBlock = {
       id: Date.now(),
       type: "clock",
       title: "Часы",
@@ -972,16 +960,16 @@ const Workspace = ({
       width: 180,
       height: 140,
     };
-    saveBlocks([...blocks, newClock]);
+    updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
-  const addNewCalendar = () => {
+  const addCalendarBlock = () => {
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 320)),
     );
-    const newCalendar = {
+    const newBlock = {
       id: Date.now(),
       type: "calendar",
       title: "Календарь",
@@ -992,26 +980,16 @@ const Workspace = ({
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
     };
-    saveBlocks([...blocks, newCalendar]);
+    updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
-  const deleteBlock = (blockId) => {
-    saveBlocks(blocks.filter((b) => b.id !== blockId));
-  };
-  const updateBlock = (updatedBlock) => {
-    saveBlocks(
-      blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
-    );
-  };
-  const handleMenuToggle = () => setIsMenuOpen(!isMenuOpen);
-  const handleOpenCustomize = () => {
-    onOpenCustomize();
-    setIsMenuOpen(false);
-  };
+  const deleteBlock = (id) => updateBlocks(blocks.filter((b) => b.id !== id));
+  const updateBlock = (updated) =>
+    updateBlocks(blocks.map((b) => (b.id === updated.id ? updated : b)));
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handler = (e) => {
       if (
         isMenuOpen &&
         !e.target.closest(".floating-menu") &&
@@ -1019,8 +997,8 @@ const Workspace = ({
       )
         setIsMenuOpen(false);
     };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
   }, [isMenuOpen]);
 
   if (blocks.length === 0) {
@@ -1055,7 +1033,7 @@ const Workspace = ({
             Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
           </p>
           <button
-            onClick={addNewBlock}
+            onClick={addTaskBlock}
             style={{
               backgroundColor: colors.accent,
               color: "white",
@@ -1064,32 +1042,32 @@ const Workspace = ({
               borderRadius: "40px",
               fontSize: "1rem",
               cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
             }}
           >
             <span>➕</span> Добавить первый блок
           </button>
         </div>
-        <button className="floating-menu-btn" onClick={handleMenuToggle}>
+        <button
+          className="floating-menu-btn"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+        >
           +
         </button>
         {isMenuOpen && (
           <div className="floating-menu">
-            <button className="menu-item" onClick={addNewBlock}>
+            <button className="menu-item" onClick={addTaskBlock}>
               <span>📦</span>
               <span>Добавить блок задач</span>
             </button>
-            <button className="menu-item" onClick={addNewClock}>
+            <button className="menu-item" onClick={addClockBlock}>
               <span>🕐</span>
               <span>Добавить часы</span>
             </button>
-            <button className="menu-item" onClick={addNewCalendar}>
+            <button className="menu-item" onClick={addCalendarBlock}>
               <span>📅</span>
               <span>Добавить календарь</span>
             </button>
-            <button className="menu-item" onClick={handleOpenCustomize}>
+            <button className="menu-item" onClick={onOpenCustomize}>
               <span>🎨</span>
               <span>Настройка цветов</span>
             </button>
@@ -1160,24 +1138,27 @@ const Workspace = ({
           );
         })}
       </div>
-      <button className="floating-menu-btn" onClick={handleMenuToggle}>
+      <button
+        className="floating-menu-btn"
+        onClick={() => setIsMenuOpen(!isMenuOpen)}
+      >
         +
       </button>
       {isMenuOpen && (
         <div className="floating-menu">
-          <button className="menu-item" onClick={addNewBlock}>
+          <button className="menu-item" onClick={addTaskBlock}>
             <span>📦</span>
             <span>Добавить блок задач</span>
           </button>
-          <button className="menu-item" onClick={addNewClock}>
+          <button className="menu-item" onClick={addClockBlock}>
             <span>🕐</span>
             <span>Добавить часы</span>
           </button>
-          <button className="menu-item" onClick={addNewCalendar}>
+          <button className="menu-item" onClick={addCalendarBlock}>
             <span>📅</span>
             <span>Добавить календарь</span>
           </button>
-          <button className="menu-item" onClick={handleOpenCustomize}>
+          <button className="menu-item" onClick={onOpenCustomize}>
             <span>🎨</span>
             <span>Настройка цветов</span>
           </button>
@@ -1204,25 +1185,17 @@ const DesktopsScreen = ({
   onRenameDesktop,
   isMaxDesktops,
 }) => {
-  const [showTooltipId, setShowTooltipId] = useState(null);
+  const [tooltipId, setTooltipId] = useState(null);
   useEffect(() => {
-    const tooltipShown = localStorage.getItem("skyPlanner_renameTooltip");
-    if (!tooltipShown && desktops.length > 0) {
-      setShowTooltipId(desktops[0].id);
+    const shown = localStorage.getItem("renameTooltip");
+    if (!shown && desktops.length) {
+      setTooltipId(desktops[0].id);
       setTimeout(() => {
-        setShowTooltipId(null);
-        localStorage.setItem("skyPlanner_renameTooltip", "true");
+        setTooltipId(null);
+        localStorage.setItem("renameTooltip", "true");
       }, 5000);
     }
   }, [desktops]);
-  const handleTitleClick = (desktop, e) => {
-    e.stopPropagation();
-    onRenameDesktop(desktop.id, desktop.name);
-  };
-  const handleCreateDesktop = () => {
-    if (isMaxDesktops) return;
-    onCreateDesktop();
-  };
   return (
     <div className="desktops-screen">
       <div className="desktops-header">
@@ -1232,7 +1205,7 @@ const DesktopsScreen = ({
       <div className="desktops-grid">
         <div
           className={`desktop-card add-desktop-card ${isMaxDesktops ? "disabled" : ""}`}
-          onClick={handleCreateDesktop}
+          onClick={() => !isMaxDesktops && onCreateDesktop()}
           style={isMaxDesktops ? { cursor: "not-allowed", opacity: 0.6 } : {}}
         >
           <div className="add-icon">➕</div>
@@ -1243,44 +1216,43 @@ const DesktopsScreen = ({
             </p>
           )}
         </div>
-        {desktops.map((desktop) => {
-          const totalTasks =
-            desktop.blocks?.reduce(
-              (sum, block) => sum + (block.tasks?.length || 0),
-              0,
-            ) || 0;
-          const completedTasks =
-            desktop.blocks?.reduce(
-              (sum, block) =>
-                sum + (block.tasks?.filter((t) => t.completed).length || 0),
+        {desktops.map((d) => {
+          const total =
+            d.blocks?.reduce((s, b) => s + (b.tasks?.length || 0), 0) || 0;
+          const done =
+            d.blocks?.reduce(
+              (s, b) => s + (b.tasks?.filter((t) => t.completed).length || 0),
               0,
             ) || 0;
           return (
             <div
-              key={desktop.id}
+              key={d.id}
               className="desktop-card"
-              onClick={() => onSelectDesktop(desktop.id)}
+              onClick={() => onSelectDesktop(d.id)}
             >
               <button
                 className="desktop-delete"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDeleteDesktop(desktop.id, desktop.name);
+                  onDeleteDesktop(d.id, d.name);
                 }}
               >
                 🗑️
               </button>
               <div
                 className="desktop-title"
-                onClick={(e) => handleTitleClick(desktop, e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRenameDesktop(d.id, d.name);
+                }}
               >
-                📌 {desktop.name}
+                📌 {d.name}
               </div>
               <div className="desktop-stats">
-                <span>✅ {completedTasks} выполнено</span>
-                <span>📝 {totalTasks} всего</span>
+                <span>✅ {done} выполнено</span>
+                <span>📝 {total} всего</span>
               </div>
-              {showTooltipId === desktop.id && (
+              {tooltipId === d.id && (
                 <div className="rename-tooltip">
                   ✏️ Кликни по названию стола для изменения
                   <div className="tooltip-arrow">👇</div>
@@ -1298,134 +1270,80 @@ const DesktopsScreen = ({
 const App = () => {
   const [showStart, setShowStart] = useState(true);
   const [desktops, setDesktops] = useState([]);
-  const [currentDesktopId, setCurrentDesktopId] = useState(null);
+  const [currentId, setCurrentId] = useState(null);
   const [showCustomize, setShowCustomize] = useState(false);
-  const [renameDialog, setRenameDialog] = useState({
-    isOpen: false,
-    desktopId: null,
-    currentName: "",
-  });
-  const [deleteDialog, setDeleteDialog] = useState({
-    isOpen: false,
-    desktopId: null,
-    desktopName: "",
+  const [rename, setRename] = useState({ open: false, id: null, name: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    open: false,
+    id: null,
+    name: "",
   });
 
-  const MAX_DESKTOPS = 20;
-  const isMaxDesktops = desktops.length >= MAX_DESKTOPS;
-  const currentDesktop = desktops.find((d) => d.id === currentDesktopId);
-  const currentColors = currentDesktop?.colors || {
+  const currentDesktop = desktops.find((d) => d.id === currentId);
+  const colors = currentDesktop?.colors || {
     bgPage: "#f0f8ff",
     text: "#1e2a3e",
     cardBg: "#ffffff",
     accent: "#87CEEB",
   };
-  const isLocked = currentDesktop?.isLocked || false;
+  const locked = currentDesktop?.isLocked || false;
 
-  // Загрузка при старте
   useEffect(() => {
-    const { desktops: savedDesktops, currentDesktopId: savedId } =
-      loadFromLocalStorage();
-    if (savedDesktops && savedDesktops.length > 0) {
-      setDesktops(savedDesktops);
+    const { desktops: saved, currentDesktopId: savedId } = loadData();
+    if (saved && saved.length) {
+      setDesktops(saved);
       setShowStart(false);
-      if (savedId && savedDesktops.some((d) => d.id === savedId))
-        setCurrentDesktopId(savedId);
+      if (savedId && saved.some((d) => d.id === savedId)) setCurrentId(savedId);
     }
   }, []);
 
-  // Сохранение при изменении
   useEffect(() => {
-    if (!showStart && desktops.length > 0) {
-      saveToLocalStorage(desktops, currentDesktopId);
-    }
-  }, [desktops, currentDesktopId, showStart]);
+    if (!showStart && desktops.length) saveData(desktops, currentId);
+  }, [desktops, currentId, showStart]);
 
-  const handleStart = () => {
-    setShowStart(false);
-    setDesktops([]);
-    setCurrentDesktopId(null);
-  };
-  const createNewDesktop = () => {
-    if (desktops.length >= MAX_DESKTOPS) {
-      alert(
-        `Достигнуто максимальное количество рабочих столов (${MAX_DESKTOPS})`,
-      );
-      return;
-    }
-    setRenameDialog({ isOpen: true, desktopId: null, currentName: "" });
-  };
-  const handleRenameConfirm = (newName) => {
-    if (!newName || !newName.trim()) return;
-    if (renameDialog.desktopId === null) {
-      if (desktops.length >= MAX_DESKTOPS) {
-        alert(
-          `Достигнуто максимальное количество рабочих столов (${MAX_DESKTOPS})`,
-        );
-        setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
-        return;
-      }
-      const newDesktop = {
-        id: Date.now(),
-        name: newName.trim(),
-        blocks: [],
-        colors: {
-          bgPage: "#f0f8ff",
-          text: "#1e2a3e",
-          cardBg: "#ffffff",
-          accent: "#87CEEB",
-        },
-        isLocked: false,
-      };
-      setDesktops((prev) => [...prev, newDesktop]);
-      setCurrentDesktopId(newDesktop.id);
-    } else {
-      setDesktops((prev) =>
-        prev.map((d) =>
-          d.id === renameDialog.desktopId ? { ...d, name: newName.trim() } : d,
-        ),
-      );
-    }
-    setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
-  };
-  const handleDeleteDesktop = (id, name) =>
-    setDeleteDialog({ isOpen: true, desktopId: id, desktopName: name });
-  const handleDeleteConfirm = () => {
-    setDesktops((prev) => prev.filter((d) => d.id !== deleteDialog.desktopId));
-    if (currentDesktopId === deleteDialog.desktopId) setCurrentDesktopId(null);
-    setDeleteDialog({ isOpen: false, desktopId: null, desktopName: "" });
-  };
-  const selectDesktop = (id) => setCurrentDesktopId(id);
-  const updateDesktop = (updatedDesktop) =>
-    setDesktops((prev) =>
-      prev.map((d) => (d.id === updatedDesktop.id ? updatedDesktop : d)),
+  if (showStart)
+    return (
+      <StartScreen
+        onStart={() => {
+          setShowStart(false);
+          setDesktops([]);
+          setCurrentId(null);
+        }}
+      />
     );
-  const updateCurrentDesktopColors = (newColors) => {
-    if (currentDesktop) updateDesktop({ ...currentDesktop, colors: newColors });
-  };
-  const toggleLock = () => {
-    if (currentDesktop)
-      updateDesktop({ ...currentDesktop, isLocked: !currentDesktop.isLocked });
-  };
-
-  if (showStart) return <StartScreen onStart={handleStart} />;
   if (currentDesktop) {
     return (
       <>
         <Workspace
           desktop={currentDesktop}
-          onUpdate={updateDesktop}
-          onBack={() => setCurrentDesktopId(null)}
-          colors={currentColors}
-          isLocked={isLocked}
-          onToggleLock={toggleLock}
+          onUpdate={(updated) =>
+            setDesktops((prev) =>
+              prev.map((d) => (d.id === updated.id ? updated : d)),
+            )
+          }
+          onBack={() => setCurrentId(null)}
+          colors={colors}
+          isLocked={locked}
+          onToggleLock={() =>
+            setDesktops((prev) =>
+              prev.map((d) =>
+                d.id === currentId ? { ...d, isLocked: !d.isLocked } : d,
+              ),
+            )
+          }
           onOpenCustomize={() => setShowCustomize(true)}
         />
         <CustomizeModal
           isOpen={showCustomize}
           onClose={() => setShowCustomize(false)}
-          colors={currentColors}
-          onSave={updateCurrentDesktopColors}
+          colors={colors}
+          onSave={(newColors) =>
+            setDesktops((prev) =>
+              prev.map((d) =>
+                d.id === currentId ? { ...d, colors: newColors } : d,
+              ),
+            )
+          }
         />
       </>
     );
@@ -1434,49 +1352,79 @@ const App = () => {
     <>
       <DesktopsScreen
         desktops={desktops}
-        onCreateDesktop={createNewDesktop}
-        onSelectDesktop={selectDesktop}
-        onDeleteDesktop={handleDeleteDesktop}
-        onRenameDesktop={(id, name) =>
-          setRenameDialog({ isOpen: true, desktopId: id, currentName: name })
+        onCreateDesktop={() => setRename({ open: true, id: null, name: "" })}
+        onSelectDesktop={setCurrentId}
+        onDeleteDesktop={(id, name) =>
+          setDeleteConfirm({ open: true, id, name })
         }
-        isMaxDesktops={isMaxDesktops}
+        onRenameDesktop={(id, name) => setRename({ open: true, id, name })}
+        isMaxDesktops={desktops.length >= 20}
       />
       <CustomizeModal
         isOpen={showCustomize}
         onClose={() => setShowCustomize(false)}
-        colors={currentColors}
-        onSave={updateCurrentDesktopColors}
+        colors={colors}
+        onSave={(newColors) =>
+          setDesktops((prev) =>
+            prev.map((d) =>
+              d.id === currentId ? { ...d, colors: newColors } : d,
+            ),
+          )
+        }
       />
       <RenameDialog
-        isOpen={renameDialog.isOpen}
+        isOpen={rename.open}
         title={
-          renameDialog.desktopId === null
-            ? "Название нового стола"
-            : "Изменить название"
+          rename.id === null ? "Название нового стола" : "Изменить название"
         }
-        defaultValue={renameDialog.currentName}
-        onConfirm={handleRenameConfirm}
-        onCancel={() =>
-          setRenameDialog({ isOpen: false, desktopId: null, currentName: "" })
-        }
+        defaultValue={rename.name}
+        onConfirm={(newName) => {
+          if (!newName?.trim()) return;
+          if (rename.id === null) {
+            if (desktops.length >= 20) {
+              alert("Лимит столов 20");
+              setRename({ open: false, id: null, name: "" });
+              return;
+            }
+            const newDesktop = {
+              id: Date.now(),
+              name: newName.trim(),
+              blocks: [],
+              colors: {
+                bgPage: "#f0f8ff",
+                text: "#1e2a3e",
+                cardBg: "#ffffff",
+                accent: "#87CEEB",
+              },
+              isLocked: false,
+            };
+            setDesktops((prev) => [...prev, newDesktop]);
+            setCurrentId(newDesktop.id);
+          } else {
+            setDesktops((prev) =>
+              prev.map((d) =>
+                d.id === rename.id ? { ...d, name: newName.trim() } : d,
+              ),
+            );
+          }
+          setRename({ open: false, id: null, name: "" });
+        }}
+        onCancel={() => setRename({ open: false, id: null, name: "" })}
       />
       <ConfirmDialog
-        isOpen={deleteDialog.isOpen}
+        isOpen={deleteConfirm.open}
         title="Удалить стол?"
-        message={`Вы уверены, что хотите удалить стол "${deleteDialog.desktopName}"? Все задачи будут потеряны.`}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() =>
-          setDeleteDialog({ isOpen: false, desktopId: null, desktopName: "" })
-        }
+        message={`Удалить "${deleteConfirm.name}"? Все задачи будут потеряны.`}
+        onConfirm={() => {
+          setDesktops((prev) => prev.filter((d) => d.id !== deleteConfirm.id));
+          if (currentId === deleteConfirm.id) setCurrentId(null);
+          setDeleteConfirm({ open: false, id: null, name: "" });
+        }}
+        onCancel={() => setDeleteConfirm({ open: false, id: null, name: "" })}
       />
     </>
   );
 };
 
-const rootElement = document.getElementById("root");
-if (ReactDOM.createRoot) {
-  ReactDOM.createRoot(rootElement).render(React.createElement(App));
-} else {
-  ReactDOM.render(React.createElement(App), rootElement);
-}
+const root = document.getElementById("root");
+ReactDOM.createRoot(root).render(React.createElement(App));
