@@ -1316,10 +1316,10 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         <div
           className="weather-temp"
           style={{
-            fontSize: "3rem",
+            fontSize: "2.5rem",
             fontWeight: "bold",
             lineHeight: 1,
-            margin: "0.5rem 0",
+            margin: "0.3rem 0",
             color: "white",
           }}
         >
@@ -1328,7 +1328,7 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         <div
           className="weather-condition"
           style={{
-            fontSize: "0.9rem",
+            fontSize: "0.8rem",
             opacity: 0.9,
             marginBottom: "0.5rem",
             display: "flex",
@@ -1337,7 +1337,7 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             color: "white",
           }}
         >
-          <span style={{ fontSize: "1.2rem" }}>
+          <span style={{ fontSize: "1rem" }}>
             {getWeatherIcon(weather?.weatherCode)}
           </span>
           {getWeatherDescription(weather?.weatherCode)}
@@ -1348,7 +1348,7 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             display: "flex",
             justifyContent: "space-between",
             marginTop: "auto",
-            fontSize: "0.7rem",
+            fontSize: "0.65rem",
             opacity: 0.8,
             color: "white",
           }}
@@ -1397,11 +1397,13 @@ const Workspace = ({
   }, []);
 
   const updateBlocks = (newBlocks) => {
+    console.log("🔄 updateBlocks called, newBlocks length:", newBlocks.length);
     setBlocks(newBlocks);
     onUpdate({ ...desktop, blocks: newBlocks });
   };
 
   const addTaskBlock = () => {
+    console.log("📦 addTaskBlock called, current blocks:", blocks.length);
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
@@ -1417,11 +1419,13 @@ const Workspace = ({
       width: 420,
       height: 420,
     };
+    console.log("➕ Adding new task block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addClockBlock = () => {
+    console.log("🕐 addClockBlock called, current blocks:", blocks.length);
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
@@ -1436,11 +1440,13 @@ const Workspace = ({
       width: 180,
       height: 140,
     };
+    console.log("➕ Adding new clock block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addCalendarBlock = () => {
+    console.log("📅 addCalendarBlock called, current blocks:", blocks.length);
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
@@ -1456,11 +1462,13 @@ const Workspace = ({
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
     };
+    console.log("➕ Adding new calendar block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addWeatherBlock = () => {
+    console.log("🌤️ addWeatherBlock called, current blocks:", blocks.length);
     const maxX = Math.max(
       50,
       ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
@@ -1474,13 +1482,20 @@ const Workspace = ({
       width: 180,
       height: 180,
     };
+    console.log("➕ Adding new weather block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
-  const deleteBlock = (id) => updateBlocks(blocks.filter((b) => b.id !== id));
-  const updateBlock = (updated) =>
+  const deleteBlock = (id) => {
+    console.log("❌ deleteBlock called, id:", id);
+    updateBlocks(blocks.filter((b) => b.id !== id));
+  };
+
+  const updateBlock = (updated) => {
+    console.log("🔄 updateBlock called, id:", updated.id);
     updateBlocks(blocks.map((b) => (b.id === updated.id ? updated : b)));
+  };
 
   useEffect(() => {
     const handler = (e) => {
@@ -1488,12 +1503,18 @@ const Workspace = ({
         isMenuOpen &&
         !e.target.closest(".floating-menu") &&
         !e.target.closest(".floating-menu-btn")
-      )
+      ) {
         setIsMenuOpen(false);
+      }
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    console.log("📀 Syncing blocks from desktop:", desktop.blocks?.length);
+    setBlocks(desktop.blocks || []);
+  }, [desktop.blocks]);
 
   if (blocks.length === 0) {
     return (
