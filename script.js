@@ -1,61 +1,47 @@
 const { useState, useEffect, useRef } = React;
 
-// Функция для сохранения всех данных в localStorage
+// ========== ФУНКЦИИ РАБОТЫ С ХРАНИЛИЩЕМ ==========
+const STORAGE_KEY = "skyPlanner_v4";
+
 const saveToLocalStorage = (desktops, currentDesktopId) => {
   const dataToSave = {
     desktops: desktops,
     currentDesktopId: currentDesktopId,
-    version: "3.0",
-    lastSaved: new Date().toISOString(),
+    version: "4.0",
   };
-  localStorage.setItem("skyPlanner_data_v3", JSON.stringify(dataToSave));
-  console.log("✅ Saved to localStorage V3:", dataToSave);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+  console.log(
+    "💾 SAVED to localStorage:",
+    JSON.parse(JSON.stringify(dataToSave)),
+  );
 };
 
-// Функция загрузки данных из localStorage
 const loadFromLocalStorage = () => {
-  let savedData = localStorage.getItem("skyPlanner_data_v3");
-  if (!savedData) {
-    savedData = localStorage.getItem("skyPlanner_data");
-  }
-  if (!savedData) {
-    savedData = localStorage.getItem("skyPlanner_desktops");
-  }
-
-  console.log("📀 Loaded from localStorage:", savedData);
+  const savedData = localStorage.getItem(STORAGE_KEY);
+  console.log("📀 LOADED from localStorage:", savedData);
 
   if (savedData) {
     try {
       const parsed = JSON.parse(savedData);
-      let desktops = [];
-      let currentDesktopId = null;
-
-      if (parsed.desktops) {
-        desktops = parsed.desktops;
-        currentDesktopId = parsed.currentDesktopId;
-      } else if (Array.isArray(parsed)) {
-        desktops = parsed;
-      }
-
-      return { desktops, currentDesktopId };
+      return {
+        desktops: parsed.desktops || [],
+        currentDesktopId: parsed.currentDesktopId || null,
+      };
     } catch (e) {
-      console.error("Error parsing localStorage data:", e);
+      console.error("Error parsing:", e);
       return { desktops: [], currentDesktopId: null };
     }
   }
   return { desktops: [], currentDesktopId: null };
 };
 
-// Кастомный диалог для ввода текста (переименование)
+// ========== ДИАЛОГИ ==========
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
   const [value, setValue] = useState(defaultValue || "");
-
   useEffect(() => {
     setValue(defaultValue || "");
   }, [defaultValue, isOpen]);
-
   if (!isOpen) return null;
-
   return (
     <div className="custom-dialog-overlay" onClick={onCancel}>
       <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
@@ -87,10 +73,8 @@ const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
   );
 };
 
-// Кастомный диалог подтверждения удаления
 const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
   if (!isOpen) return null;
-
   return (
     <div className="custom-dialog-overlay" onClick={onCancel}>
       <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
@@ -113,37 +97,30 @@ const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
   );
 };
 
-// Компонент стартового экрана
+// ========== СТАРТОВЫЙ ЭКРАН ==========
 const StartScreen = ({ onStart }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [shouldHide, setShouldHide] = useState(false);
-
   const handleStart = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-
     setIsAnimating(true);
-
     const pulseLayer = document.createElement("div");
     pulseLayer.className = "pulse-overlay";
     pulseLayer.style.transformOrigin = `${centerX}px ${centerY}px`;
     document.body.appendChild(pulseLayer);
-
     setTimeout(() => {
       pulseLayer.style.transform = "scale(100)";
       pulseLayer.style.opacity = "1";
     }, 10);
-
     setTimeout(() => setShouldHide(true), 300);
-
     setTimeout(() => {
       pulseLayer.style.opacity = "0";
       setTimeout(() => pulseLayer.remove(), 500);
       onStart();
     }, 1600);
   };
-
   return (
     <div
       className="start-screen"
@@ -164,10 +141,9 @@ const StartScreen = ({ onStart }) => {
   );
 };
 
-// Компонент уведомления
+// ========== УВЕДОМЛЕНИЕ ==========
 const TipsNotification = ({ onClose, onDontShowAgain }) => {
   const [dontShow, setDontShow] = useState(false);
-
   const handleDontShowChange = (e) => {
     setDontShow(e.target.checked);
     if (e.target.checked) {
@@ -175,7 +151,6 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
       setTimeout(onClose, 300);
     }
   };
-
   return (
     <div className="tips-notification">
       <div className="notification-header">
@@ -211,21 +186,17 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
   );
 };
 
-// Модальное окно кастомизации
+// ========== МОДАЛЬНОЕ ОКНО КАСТОМИЗАЦИИ ==========
 const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   const [localColors, setLocalColors] = useState(colors);
-
   useEffect(() => {
     setLocalColors(colors);
   }, [colors, isOpen]);
-
   if (!isOpen) return null;
-
   const handleSave = () => {
     onSave(localColors);
     onClose();
   };
-
   const handleReset = () => {
     const defaultColors = {
       bgPage: "#f0f8ff",
@@ -236,7 +207,6 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
     setLocalColors(defaultColors);
     onSave(defaultColors);
   };
-
   return (
     <div className="modal" style={{ display: "block" }}>
       <div className="modal-content">
@@ -305,7 +275,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач
+// ========== БЛОК ЗАДАЧ ==========
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
@@ -325,15 +295,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartPos = useRef({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
 
+  // Синхронизация с пропсами
   useEffect(() => {
-    console.log(
-      "🎯 TaskBlock updating:",
-      block.id,
-      "x:",
-      block.x,
-      "y:",
-      block.y,
-    );
     setPosition({
       x: block.x !== undefined ? block.x : 50,
       y: block.y !== undefined ? block.y : 50,
@@ -354,13 +317,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       width: newSize.width,
       height: newSize.height,
     };
-    console.log(
-      "💾 Saving TaskBlock:",
-      updatedBlock.id,
-      "new x/y:",
-      updatedBlock.x,
-      updatedBlock.y,
-    );
     onUpdate(updatedBlock);
   };
 
@@ -391,9 +347,10 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   useEffect(() => {
     if (taskListRef.current) {
-      const shouldScroll =
-        taskListRef.current.scrollHeight > taskListRef.current.clientHeight;
-      taskListRef.current.style.overflowY = shouldScroll ? "auto" : "hidden";
+      taskListRef.current.style.overflowY =
+        taskListRef.current.scrollHeight > taskListRef.current.clientHeight
+          ? "auto"
+          : "hidden";
     }
   }, [tasks, size.height]);
 
@@ -417,31 +374,24 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       if (
         Math.abs(newX - dragStartPos.current.x) > 2 ||
         Math.abs(newY - dragStartPos.current.y) > 2
-      ) {
+      )
         hasMovedRef.current = true;
-      }
       setPosition({ x: newX, y: newY });
     }
     if (isResizing && !isLocked) {
       const deltaX = e.clientX - resizeStartRef.current.x;
       const deltaY = e.clientY - resizeStartRef.current.y;
-      const newWidth = Math.max(420, resizeStartRef.current.width + deltaX);
-      const newHeight = Math.max(420, resizeStartRef.current.height + deltaY);
-      setSize({ width: newWidth, height: newHeight });
+      setSize({
+        width: Math.max(420, resizeStartRef.current.width + deltaX),
+        height: Math.max(420, resizeStartRef.current.height + deltaY),
+      });
     }
   };
 
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      if (
-        hasMovedRef.current &&
-        (dragStartPos.current.x !== position.x ||
-          dragStartPos.current.y !== position.y)
-      ) {
-        console.log("📍 Saving position after drag:", position.x, position.y);
-        saveChanges(position, size, undefined);
-      }
+      if (hasMovedRef.current) saveChanges(position, size, undefined);
     }
     if (isResizing) {
       setIsResizing(false);
@@ -558,7 +508,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент виджета часов
+// ========== ЧАСЫ ==========
 const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [time, setTime] = useState(new Date());
   const [position, setPosition] = useState({
@@ -571,14 +521,6 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const hasMovedRef = useRef(false);
 
   useEffect(() => {
-    console.log(
-      "🎯 ClockWidget updating:",
-      block.id,
-      "x:",
-      block.x,
-      "y:",
-      block.y,
-    );
     setPosition({
       x: block.x !== undefined ? block.x : 50,
       y: block.y !== undefined ? block.y : 50,
@@ -586,26 +528,12 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   }, [block.id, block.x, block.y]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
+    const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   const savePosition = () => {
-    const updatedBlock = {
-      ...block,
-      x: position.x,
-      y: position.y,
-    };
-    console.log(
-      "💾 Saving ClockWidget:",
-      updatedBlock.id,
-      "new x/y:",
-      updatedBlock.x,
-      updatedBlock.y,
-    );
-    onUpdate(updatedBlock);
+    onUpdate({ ...block, x: position.x, y: position.y });
   };
 
   const handleMouseDown = (e) => {
@@ -628,9 +556,8 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       if (
         Math.abs(newX - dragStartPos.current.x) > 2 ||
         Math.abs(newY - dragStartPos.current.y) > 2
-      ) {
+      )
         hasMovedRef.current = true;
-      }
       setPosition({ x: newX, y: newY });
     }
   };
@@ -638,13 +565,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      if (
-        hasMovedRef.current &&
-        (dragStartPos.current.x !== position.x ||
-          dragStartPos.current.y !== position.y)
-      ) {
-        savePosition();
-      }
+      if (hasMovedRef.current) savePosition();
     }
   };
 
@@ -668,7 +589,6 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       day: "numeric",
       month: "short",
     });
-
     return (
       <div className="digital-clock">
         <div className="digital-time" style={{ color: colors.text }}>
@@ -723,20 +643,14 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент виджета календаря
+// ========== КАЛЕНДАРЬ ==========
 const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
-  const [currentDate, setCurrentDate] = useState(() => {
-    if (block.currentDate) {
-      return new Date(block.currentDate);
-    }
-    return new Date();
-  });
-  const [selectedDate, setSelectedDate] = useState(() => {
-    if (block.selectedDate) {
-      return new Date(block.selectedDate);
-    }
-    return new Date();
-  });
+  const [currentDate, setCurrentDate] = useState(() =>
+    block.currentDate ? new Date(block.currentDate) : new Date(),
+  );
+  const [selectedDate, setSelectedDate] = useState(() =>
+    block.selectedDate ? new Date(block.selectedDate) : new Date(),
+  );
   const [position, setPosition] = useState({
     x: block.x || 50,
     y: block.y || 50,
@@ -753,14 +667,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const hasMovedRef = useRef(false);
 
   useEffect(() => {
-    console.log(
-      "🎯 CalendarWidget updating:",
-      block.id,
-      "x:",
-      block.x,
-      "y:",
-      block.y,
-    );
     setPosition({
       x: block.x !== undefined ? block.x : 50,
       y: block.y !== undefined ? block.y : 50,
@@ -769,24 +675,12 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       width: block.width !== undefined ? block.width : 320,
       height: block.height !== undefined ? block.height : 280,
     });
-    if (block.currentDate) {
-      setCurrentDate(new Date(block.currentDate));
-    }
-    if (block.selectedDate) {
-      setSelectedDate(new Date(block.selectedDate));
-    }
-  }, [
-    block.id,
-    block.x,
-    block.y,
-    block.width,
-    block.height,
-    block.currentDate,
-    block.selectedDate,
-  ]);
+    if (block.currentDate) setCurrentDate(new Date(block.currentDate));
+    if (block.selectedDate) setSelectedDate(new Date(block.selectedDate));
+  }, [block.id, block.x, block.y, block.width, block.height]);
 
   const saveChanges = () => {
-    const updatedBlock = {
+    onUpdate({
       ...block,
       x: position.x,
       y: position.y,
@@ -794,15 +688,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       height: size.height,
       currentDate: currentDate.toISOString(),
       selectedDate: selectedDate.toISOString(),
-    };
-    console.log(
-      "💾 Saving CalendarWidget:",
-      updatedBlock.id,
-      "new x/y:",
-      updatedBlock.x,
-      updatedBlock.y,
-    );
-    onUpdate(updatedBlock);
+    });
   };
 
   const handleMouseDown = (e) => {
@@ -825,30 +711,24 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       if (
         Math.abs(newX - dragStartPos.current.x) > 2 ||
         Math.abs(newY - dragStartPos.current.y) > 2
-      ) {
+      )
         hasMovedRef.current = true;
-      }
       setPosition({ x: newX, y: newY });
     }
     if (isResizing && !isLocked) {
       const deltaX = e.clientX - resizeStartRef.current.x;
       const deltaY = e.clientY - resizeStartRef.current.y;
-      const newWidth = Math.max(320, resizeStartRef.current.width + deltaX);
-      const newHeight = Math.max(280, resizeStartRef.current.height + deltaY);
-      setSize({ width: newWidth, height: newHeight });
+      setSize({
+        width: Math.max(320, resizeStartRef.current.width + deltaX),
+        height: Math.max(280, resizeStartRef.current.height + deltaY),
+      });
     }
   };
 
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      if (
-        hasMovedRef.current &&
-        (dragStartPos.current.x !== position.x ||
-          dragStartPos.current.y !== position.y)
-      ) {
-        saveChanges();
-      }
+      if (hasMovedRef.current) saveChanges();
     }
     if (isResizing) {
       setIsResizing(false);
@@ -880,13 +760,9 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     };
   }, [isDragging, isResizing]);
 
-  const getDaysInMonth = (year, month) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (year, month) => {
-    return new Date(year, month, 1).getDay();
-  };
+  const getDaysInMonth = (year, month) =>
+    new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
   const handlePrevMonth = () => {
     setCurrentDate(
@@ -894,21 +770,16 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     );
     saveChanges();
   };
-
   const handleNextMonth = () => {
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
     );
     saveChanges();
   };
-
   const handleDateClick = (day) => {
-    const newDate = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      day,
+    setSelectedDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth(), day),
     );
-    setSelectedDate(newDate);
     saveChanges();
   };
 
@@ -918,15 +789,10 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
     const today = new Date();
-
     const days = [];
-
     let startOffset = firstDay === 0 ? 6 : firstDay - 1;
-
-    for (let i = 0; i < startOffset; i++) {
+    for (let i = 0; i < startOffset; i++)
       days.push(<div key={`empty-${i}`} className="calendar-day"></div>);
-    }
-
     for (let day = 1; day <= daysInMonth; day++) {
       const isSelected =
         selectedDate.getDate() === day &&
@@ -947,7 +813,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         </div>,
       );
     }
-
     return days;
   };
 
@@ -1044,7 +909,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// Компонент рабочего стола
+// ========== РАБОЧИЙ СТОЛ ==========
 const Workspace = ({
   desktop,
   onUpdate,
@@ -1068,10 +933,6 @@ const Workspace = ({
   }, []);
 
   const saveBlocks = (newBlocks) => {
-    console.log(
-      "🔄 saveBlocks called, newBlocks:",
-      newBlocks.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-    );
     setBlocks(newBlocks);
     onUpdate({ ...desktop, blocks: newBlocks });
   };
@@ -1138,25 +999,12 @@ const Workspace = ({
   const deleteBlock = (blockId) => {
     saveBlocks(blocks.filter((b) => b.id !== blockId));
   };
-
   const updateBlock = (updatedBlock) => {
-    console.log(
-      "🔄 updateBlock called:",
-      updatedBlock.id,
-      "x:",
-      updatedBlock.x,
-      "y:",
-      updatedBlock.y,
-    );
     saveBlocks(
       blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
     );
   };
-
-  const handleMenuToggle = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
+  const handleMenuToggle = () => setIsMenuOpen(!isMenuOpen);
   const handleOpenCustomize = () => {
     onOpenCustomize();
     setIsMenuOpen(false);
@@ -1168,9 +1016,8 @@ const Workspace = ({
         isMenuOpen &&
         !e.target.closest(".floating-menu") &&
         !e.target.closest(".floating-menu-btn")
-      ) {
+      )
         setIsMenuOpen(false);
-      }
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
@@ -1225,11 +1072,9 @@ const Workspace = ({
             <span>➕</span> Добавить первый блок
           </button>
         </div>
-
         <button className="floating-menu-btn" onClick={handleMenuToggle}>
           +
         </button>
-
         {isMenuOpen && (
           <div className="floating-menu">
             <button className="menu-item" onClick={addNewBlock}>
@@ -1250,7 +1095,6 @@ const Workspace = ({
             </button>
           </div>
         )}
-
         {showTips && (
           <TipsNotification
             onClose={() => setShowTips(false)}
@@ -1282,7 +1126,7 @@ const Workspace = ({
         }}
       >
         {blocks.map((block) => {
-          if (block.type === "clock") {
+          if (block.type === "clock")
             return (
               <ClockWidget
                 key={block.id}
@@ -1293,8 +1137,7 @@ const Workspace = ({
                 isLocked={isLocked}
               />
             );
-          }
-          if (block.type === "calendar") {
+          if (block.type === "calendar")
             return (
               <CalendarWidget
                 key={block.id}
@@ -1305,7 +1148,6 @@ const Workspace = ({
                 isLocked={isLocked}
               />
             );
-          }
           return (
             <TaskBlock
               key={block.id}
@@ -1318,11 +1160,9 @@ const Workspace = ({
           );
         })}
       </div>
-
       <button className="floating-menu-btn" onClick={handleMenuToggle}>
         +
       </button>
-
       {isMenuOpen && (
         <div className="floating-menu">
           <button className="menu-item" onClick={addNewBlock}>
@@ -1343,7 +1183,6 @@ const Workspace = ({
           </button>
         </div>
       )}
-
       {showTips && (
         <TipsNotification
           onClose={() => setShowTips(false)}
@@ -1356,7 +1195,7 @@ const Workspace = ({
   );
 };
 
-// Компонент выбора рабочего стола
+// ========== ЭКРАН ВЫБОРА СТОЛОВ ==========
 const DesktopsScreen = ({
   desktops,
   onCreateDesktop,
@@ -1366,7 +1205,6 @@ const DesktopsScreen = ({
   isMaxDesktops,
 }) => {
   const [showTooltipId, setShowTooltipId] = useState(null);
-
   useEffect(() => {
     const tooltipShown = localStorage.getItem("skyPlanner_renameTooltip");
     if (!tooltipShown && desktops.length > 0) {
@@ -1377,17 +1215,14 @@ const DesktopsScreen = ({
       }, 5000);
     }
   }, [desktops]);
-
   const handleTitleClick = (desktop, e) => {
     e.stopPropagation();
     onRenameDesktop(desktop.id, desktop.name);
   };
-
   const handleCreateDesktop = () => {
     if (isMaxDesktops) return;
     onCreateDesktop();
   };
-
   return (
     <div className="desktops-screen">
       <div className="desktops-header">
@@ -1459,7 +1294,7 @@ const DesktopsScreen = ({
   );
 };
 
-// Главный компонент
+// ========== ГЛАВНЫЙ КОМПОНЕНТ ==========
 const App = () => {
   const [showStart, setShowStart] = useState(true);
   const [desktops, setDesktops] = useState([]);
@@ -1478,7 +1313,6 @@ const App = () => {
 
   const MAX_DESKTOPS = 20;
   const isMaxDesktops = desktops.length >= MAX_DESKTOPS;
-
   const currentDesktop = desktops.find((d) => d.id === currentDesktopId);
   const currentColors = currentDesktop?.colors || {
     bgPage: "#f0f8ff",
@@ -1488,38 +1322,21 @@ const App = () => {
   };
   const isLocked = currentDesktop?.isLocked || false;
 
-  // Загрузка данных при монтировании
+  // Загрузка при старте
   useEffect(() => {
-    const { desktops: savedDesktops, currentDesktopId: savedCurrentDesktopId } =
+    const { desktops: savedDesktops, currentDesktopId: savedId } =
       loadFromLocalStorage();
-
-    console.log("📀 Loaded desktops:", savedDesktops);
-    console.log("📀 Loaded currentDesktopId:", savedCurrentDesktopId);
-
     if (savedDesktops && savedDesktops.length > 0) {
       setDesktops(savedDesktops);
       setShowStart(false);
-      if (
-        savedCurrentDesktopId &&
-        savedDesktops.some((d) => d.id === savedCurrentDesktopId)
-      ) {
-        setCurrentDesktopId(savedCurrentDesktopId);
-      }
-    } else {
-      setShowStart(true);
+      if (savedId && savedDesktops.some((d) => d.id === savedId))
+        setCurrentDesktopId(savedId);
     }
   }, []);
 
-  // Сохранение при каждом изменении
+  // Сохранение при изменении
   useEffect(() => {
     if (!showStart && desktops.length > 0) {
-      console.log(
-        "📀 Saving to localStorage V3, desktops:",
-        desktops.map((d) => ({
-          id: d.id,
-          blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-        })),
-      );
       saveToLocalStorage(desktops, currentDesktopId);
     }
   }, [desktops, currentDesktopId, showStart]);
@@ -1529,7 +1346,6 @@ const App = () => {
     setDesktops([]);
     setCurrentDesktopId(null);
   };
-
   const createNewDesktop = () => {
     if (desktops.length >= MAX_DESKTOPS) {
       alert(
@@ -1539,7 +1355,6 @@ const App = () => {
     }
     setRenameDialog({ isOpen: true, desktopId: null, currentName: "" });
   };
-
   const handleRenameConfirm = (newName) => {
     if (!newName || !newName.trim()) return;
     if (renameDialog.desktopId === null) {
@@ -1573,40 +1388,24 @@ const App = () => {
     }
     setRenameDialog({ isOpen: false, desktopId: null, currentName: "" });
   };
-
-  const handleDeleteDesktop = (id, name) => {
+  const handleDeleteDesktop = (id, name) =>
     setDeleteDialog({ isOpen: true, desktopId: id, desktopName: name });
-  };
-
   const handleDeleteConfirm = () => {
     setDesktops((prev) => prev.filter((d) => d.id !== deleteDialog.desktopId));
     if (currentDesktopId === deleteDialog.desktopId) setCurrentDesktopId(null);
     setDeleteDialog({ isOpen: false, desktopId: null, desktopName: "" });
   };
-
-  const selectDesktop = (id) => {
-    setCurrentDesktopId(id);
-  };
-
-  const updateDesktop = (updatedDesktop) => {
-    console.log("🔄 updateDesktop called:", updatedDesktop.id);
+  const selectDesktop = (id) => setCurrentDesktopId(id);
+  const updateDesktop = (updatedDesktop) =>
     setDesktops((prev) =>
       prev.map((d) => (d.id === updatedDesktop.id ? updatedDesktop : d)),
     );
-  };
-
   const updateCurrentDesktopColors = (newColors) => {
-    if (currentDesktop) {
-      const updated = { ...currentDesktop, colors: newColors };
-      updateDesktop(updated);
-    }
+    if (currentDesktop) updateDesktop({ ...currentDesktop, colors: newColors });
   };
-
   const toggleLock = () => {
-    if (currentDesktop) {
-      const updated = { ...currentDesktop, isLocked: !currentDesktop.isLocked };
-      updateDesktop(updated);
-    }
+    if (currentDesktop)
+      updateDesktop({ ...currentDesktop, isLocked: !currentDesktop.isLocked });
   };
 
   if (showStart) return <StartScreen onStart={handleStart} />;
@@ -1638,8 +1437,8 @@ const App = () => {
         onCreateDesktop={createNewDesktop}
         onSelectDesktop={selectDesktop}
         onDeleteDesktop={handleDeleteDesktop}
-        onRenameDesktop={(id, currentName) =>
-          setRenameDialog({ isOpen: true, desktopId: id, currentName })
+        onRenameDesktop={(id, name) =>
+          setRenameDialog({ isOpen: true, desktopId: id, currentName: name })
         }
         isMaxDesktops={isMaxDesktops}
       />
