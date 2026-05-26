@@ -2,23 +2,33 @@ const { useState, useEffect, useRef } = React;
 
 // Функция для сохранения всех данных в localStorage
 const saveToLocalStorage = (desktops, currentDesktopId) => {
-  localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
-  localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
-  console.log("✅ Saved to localStorage:", {
-    desktops: desktops.map((d) => ({
-      id: d.id,
-      name: d.name,
-      blocks: d.blocks?.map((b) => ({
-        id: b.id,
-        type: b.type,
-        x: b.x,
-        y: b.y,
-        width: b.width,
-        height: b.height,
-      })),
-    })),
-    currentDesktopId,
-  });
+  const dataToSave = {
+    desktops: desktops,
+    currentDesktopId: currentDesktopId,
+    version: "2.0",
+  };
+  localStorage.setItem("skyPlanner_data", JSON.stringify(dataToSave));
+  console.log("✅ Saved to localStorage:", dataToSave);
+};
+
+// Функция загрузки данных из localStorage
+const loadFromLocalStorage = () => {
+  const savedData = localStorage.getItem("skyPlanner_data");
+  console.log("📀 Loaded from localStorage:", savedData);
+
+  if (savedData) {
+    try {
+      const parsed = JSON.parse(savedData);
+      return {
+        desktops: parsed.desktops || [],
+        currentDesktopId: parsed.currentDesktopId || null,
+      };
+    } catch (e) {
+      console.error("Error parsing localStorage data:", e);
+      return { desktops: [], currentDesktopId: null };
+    }
+  }
+  return { desktops: [], currentDesktopId: null };
 };
 
 // Кастомный диалог для ввода текста (переименование)
@@ -280,11 +290,10 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// Компонент блока (карточки) задач - ИСПРАВЛЕННОЕ СОХРАНЕНИЕ ПОЗИЦИИ
+// Компонент блока (карточки) задач
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
-  // ВАЖНО: используем значения из props при инициализации
   const [position, setPosition] = useState({
     x: block.x || 50,
     y: block.y || 50,
@@ -304,41 +313,48 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   // При обновлении блока извне - обновляем позицию
   useEffect(() => {
     console.log(
-      "🎯 TaskBlock updating position from props:",
+      "🎯 TaskBlock updating:",
       block.id,
       "x:",
       block.x,
       "y:",
       block.y,
+      "width:",
+      block.width,
+      "height:",
+      block.height,
     );
-    if (block.x !== undefined && block.y !== undefined) {
-      setPosition({ x: block.x, y: block.y });
-    }
-    if (block.width !== undefined && block.height !== undefined) {
-      setSize({ width: block.width, height: block.height });
-    }
+    setPosition({
+      x: block.x !== undefined ? block.x : 50,
+      y: block.y !== undefined ? block.y : 50,
+    });
+    setSize({
+      width: block.width !== undefined ? block.width : 420,
+      height: block.height !== undefined ? block.height : 420,
+    });
     setTasks(block.tasks || []);
-  }, [block.id, block.x, block.y, block.width, block.height]);
+  }, [block.id, block.x, block.y, block.width, block.height, block.tasks]);
 
   const saveChanges = (newPosition, newSize, newTasks) => {
-    console.log(
-      "💾 Saving block position:",
-      block.id,
-      "old x/y:",
-      block.x,
-      block.y,
-      "new x/y:",
-      newPosition.x,
-      newPosition.y,
-    );
     const updatedBlock = {
-      ...block,
+      id: block.id,
+      type: block.type || "task",
+      title: block.title,
+      icon: block.icon,
       tasks: newTasks !== undefined ? newTasks : tasks,
       x: newPosition.x,
       y: newPosition.y,
       width: newSize.width,
       height: newSize.height,
     };
+    console.log(
+      "💾 Saving TaskBlock:",
+      updatedBlock.id,
+      "x:",
+      updatedBlock.x,
+      "y:",
+      updatedBlock.y,
+    );
     onUpdate(updatedBlock);
   };
 
@@ -550,16 +566,17 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   useEffect(() => {
     console.log(
-      "🎯 ClockWidget updating position from props:",
+      "🎯 ClockWidget updating:",
       block.id,
       "x:",
       block.x,
       "y:",
       block.y,
     );
-    if (block.x !== undefined && block.y !== undefined) {
-      setPosition({ x: block.x, y: block.y });
-    }
+    setPosition({
+      x: block.x !== undefined ? block.x : 50,
+      y: block.y !== undefined ? block.y : 50,
+    });
   }, [block.id, block.x, block.y]);
 
   useEffect(() => {
@@ -570,15 +587,25 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   }, []);
 
   const savePosition = () => {
+    const updatedBlock = {
+      id: block.id,
+      type: block.type || "clock",
+      title: block.title,
+      clockType: block.clockType || "digital",
+      x: position.x,
+      y: position.y,
+      width: block.width || 180,
+      height: block.height || 140,
+    };
     console.log(
-      "💾 Saving clock position:",
-      block.id,
+      "💾 Saving ClockWidget:",
+      updatedBlock.id,
       "x:",
-      position.x,
+      updatedBlock.x,
       "y:",
-      position.y,
+      updatedBlock.y,
     );
-    onUpdate({ ...block, x: position.x, y: position.y });
+    onUpdate(updatedBlock);
   };
 
   const handleMouseDown = (e) => {
@@ -661,8 +688,8 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         position: "absolute",
         left: position.x + "px",
         top: position.y + "px",
-        width: "180px",
-        height: "140px",
+        width: block.width || 180,
+        height: block.height || 140,
         cursor: isDragging ? "grabbing" : "grab",
         zIndex: isDragging ? 1000 : 1,
       }}
@@ -727,19 +754,21 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   useEffect(() => {
     console.log(
-      "🎯 CalendarWidget updating position from props:",
+      "🎯 CalendarWidget updating:",
       block.id,
       "x:",
       block.x,
       "y:",
       block.y,
     );
-    if (block.x !== undefined && block.y !== undefined) {
-      setPosition({ x: block.x, y: block.y });
-    }
-    if (block.width !== undefined && block.height !== undefined) {
-      setSize({ width: block.width, height: block.height });
-    }
+    setPosition({
+      x: block.x !== undefined ? block.x : 50,
+      y: block.y !== undefined ? block.y : 50,
+    });
+    setSize({
+      width: block.width !== undefined ? block.width : 320,
+      height: block.height !== undefined ? block.height : 280,
+    });
     if (block.currentDate) {
       setCurrentDate(new Date(block.currentDate));
     }
@@ -757,23 +786,26 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   ]);
 
   const saveChanges = () => {
-    console.log(
-      "💾 Saving calendar position:",
-      block.id,
-      "x:",
-      position.x,
-      "y:",
-      position.y,
-    );
-    onUpdate({
-      ...block,
+    const updatedBlock = {
+      id: block.id,
+      type: block.type || "calendar",
+      title: block.title,
       x: position.x,
       y: position.y,
       width: size.width,
       height: size.height,
       currentDate: currentDate.toISOString(),
       selectedDate: selectedDate.toISOString(),
-    });
+    };
+    console.log(
+      "💾 Saving CalendarWidget:",
+      updatedBlock.id,
+      "x:",
+      updatedBlock.x,
+      "y:",
+      updatedBlock.y,
+    );
+    onUpdate(updatedBlock);
   };
 
   const handleMouseDown = (e) => {
@@ -1039,6 +1071,10 @@ const Workspace = ({
   }, []);
 
   const saveBlocks = (newBlocks) => {
+    console.log(
+      "🔄 saveBlocks called, newBlocks:",
+      newBlocks.map((b) => ({ id: b.id, x: b.x, y: b.y })),
+    );
     setBlocks(newBlocks);
     onUpdate({ ...desktop, blocks: newBlocks });
   };
@@ -1110,12 +1146,13 @@ const Workspace = ({
     console.log(
       "🔄 updateBlock called:",
       updatedBlock.id,
-      "position:",
+      "x:",
       updatedBlock.x,
+      "y:",
       updatedBlock.y,
     );
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
+    saveBlocks(
+      blocks.map((b) => (b.id === updatedBlock.id ? updatedBlock : b)),
     );
   };
 
@@ -1456,73 +1493,19 @@ const App = () => {
 
   // Загрузка данных при монтировании
   useEffect(() => {
-    const savedDesktops = localStorage.getItem("skyPlanner_desktops");
-    const savedCurrentDesktop = localStorage.getItem(
-      "skyPlanner_currentDesktop",
-    );
+    const { desktops: savedDesktops, currentDesktopId: savedCurrentDesktopId } =
+      loadFromLocalStorage();
 
-    console.log("📀 Loaded from localStorage - raw data:", savedDesktops);
+    console.log("📀 Loaded desktops:", savedDesktops);
 
-    if (savedDesktops) {
-      const parsed = JSON.parse(savedDesktops);
-      console.log(
-        "📀 Parsed desktops:",
-        parsed.map((d) => ({
-          id: d.id,
-          name: d.name,
-          blocks: d.blocks?.map((b) => ({
-            id: b.id,
-            type: b.type,
-            x: b.x,
-            y: b.y,
-            width: b.width,
-            height: b.height,
-          })),
-        })),
-      );
-
-      // Убеждаемся, что у каждого блока есть x, y, width, height
-      const desktopsWithDefaults = parsed.map((d) => ({
-        ...d,
-        blocks:
-          d.blocks?.map((b) => ({
-            ...b,
-            x: b.x !== undefined ? b.x : 50,
-            y: b.y !== undefined ? b.y : 50,
-            width:
-              b.width !== undefined
-                ? b.width
-                : b.type === "clock"
-                  ? 180
-                  : b.type === "calendar"
-                    ? 320
-                    : 420,
-            height:
-              b.height !== undefined
-                ? b.height
-                : b.type === "clock"
-                  ? 140
-                  : b.type === "calendar"
-                    ? 280
-                    : 420,
-          })) || [],
-        colors: d.colors || {
-          bgPage: "#f0f8ff",
-          text: "#1e2a3e",
-          cardBg: "#ffffff",
-          accent: "#87CEEB",
-        },
-        isLocked: d.isLocked || false,
-      }));
-
-      setDesktops(desktopsWithDefaults);
+    if (savedDesktops && savedDesktops.length > 0) {
+      setDesktops(savedDesktops);
       setShowStart(false);
-
-      if (savedCurrentDesktop) {
-        const currentId = parseInt(savedCurrentDesktop);
-        if (desktopsWithDefaults.some((d) => d.id === currentId)) {
-          setCurrentDesktopId(currentId);
-        }
+      if (
+        savedCurrentDesktopId &&
+        savedDesktops.some((d) => d.id === savedCurrentDesktopId)
+      ) {
+        setCurrentDesktopId(savedCurrentDesktopId);
       }
     } else {
       setShowStart(true);
@@ -1531,16 +1514,8 @@ const App = () => {
 
   // Сохранение при каждом изменении
   useEffect(() => {
-    if (!showStart && desktops.length > 0) {
-      console.log(
-        "✅ Saving to localStorage - desktops:",
-        desktops.map((d) => ({
-          id: d.id,
-          blocks: d.blocks?.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-        })),
-      );
-      localStorage.setItem("skyPlanner_desktops", JSON.stringify(desktops));
-      localStorage.setItem("skyPlanner_currentDesktop", currentDesktopId || "");
+    if (!showStart) {
+      saveToLocalStorage(desktops, currentDesktopId);
     }
   }, [desktops, currentDesktopId, showStart]);
 
