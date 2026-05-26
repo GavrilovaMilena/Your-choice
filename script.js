@@ -157,6 +157,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">➕ Добавляй новые блоки через кнопку +</div>
         <div className="tip-item">🕐 Добавляй часы через меню</div>
         <div className="tip-item">📅 Добавляй календарь через меню</div>
+        <div className="tip-item">🌤️ Добавляй погоду через меню</div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -666,7 +667,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     });
   };
 
-  // Drag handlers
   const handleDragStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
@@ -693,7 +693,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   };
 
-  // Resize handlers
   const handleResizeStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
@@ -720,7 +719,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   };
 
-  // Global event listeners
   useEffect(() => {
     if (isDragging || isResizing) {
       const moveHandler = (e) => {
@@ -763,7 +761,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     saveChanges();
   };
 
-  // Адаптивный рендер календаря с динамическими размерами
   const renderCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -959,6 +956,423 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
+// ========== ПОГОДА ==========
+const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [x, setX] = useState(block.x || 50);
+  const [y, setY] = useState(block.y || 50);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0),
+    dragStartY = useRef(0);
+  const dragStartPosX = useRef(0),
+    dragStartPosY = useRef(0);
+
+  useEffect(() => {
+    setX(block.x !== undefined ? block.x : 50);
+    setY(block.y !== undefined ? block.y : 50);
+  }, [block.id, block.x, block.y]);
+
+  const fetchWeather = (lat, lon) => {
+    setLoading(true);
+    setError(null);
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.current_weather) {
+          const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+          fetch(geoUrl)
+            .then((res) => res.json())
+            .then((geoData) => {
+              const city =
+                geoData.address?.city ||
+                geoData.address?.town ||
+                geoData.address?.village ||
+                "Неизвестно";
+              setWeather({
+                temp: Math.round(data.current_weather.temperature),
+                windSpeed: data.current_weather.windspeed,
+                windDirection: data.current_weather.winddirection,
+                weatherCode: data.current_weather.weathercode,
+                city: city,
+                lat: lat,
+                lon: lon,
+              });
+              setLoading(false);
+            })
+            .catch(() => {
+              setWeather({
+                temp: Math.round(data.current_weather.temperature),
+                windSpeed: data.current_weather.windspeed,
+                windDirection: data.current_weather.winddirection,
+                weatherCode: data.current_weather.weathercode,
+                city: "Текущее местоположение",
+                lat: lat,
+                lon: lon,
+              });
+              setLoading(false);
+            });
+        } else {
+          setError("Не удалось получить данные о погоде");
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Weather fetch error:", err);
+        setError("Ошибка загрузки погоды");
+        setLoading(false);
+      });
+  };
+
+  const getLocationAndWeather = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          onUpdate({ ...block, lat: latitude, lon: longitude });
+          fetchWeather(latitude, longitude);
+        },
+        (err) => {
+          console.error("Geolocation error:", err);
+          setError("Не удалось определить местоположение");
+          setLoading(false);
+        },
+      );
+    } else {
+      setError("Геолокация не поддерживается");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (block.lat && block.lon) {
+      fetchWeather(block.lat, block.lon);
+    } else {
+      getLocationAndWeather();
+    }
+  }, [block.lat, block.lon]);
+
+  const savePosition = () => {
+    onUpdate({ ...block, x, y });
+  };
+
+  const handleMouseDown = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragStartX.current = e.clientX - x;
+    dragStartY.current = e.clientY - y;
+    dragStartPosX.current = x;
+    dragStartPosY.current = y;
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setX(e.clientX - dragStartX.current);
+    setY(e.clientY - dragStartY.current);
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        savePosition();
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      const moveHandler = (e) => handleMouseMove(e);
+      const upHandler = () => handleMouseUp();
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
+    }
+  }, [isDragging, x, y]);
+
+  const getWeatherIcon = (code) => {
+    if (code === 0) return "☀️";
+    if (code === 1 || code === 2) return "⛅";
+    if (code === 3) return "☁️";
+    if (code >= 45 && code <= 48) return "🌫️";
+    if (code >= 51 && code <= 55) return "🌧️";
+    if (code >= 56 && code <= 57) return "❄️";
+    if (code >= 61 && code <= 65) return "🌧️";
+    if (code >= 66 && code <= 67) return "❄️";
+    if (code >= 71 && code <= 75) return "❄️";
+    if (code === 77) return "❄️";
+    if (code >= 80 && code <= 82) return "🌧️";
+    if (code >= 85 && code <= 86) return "❄️";
+    if (code >= 95 && code <= 99) return "⛈️";
+    return "🌡️";
+  };
+
+  const getWeatherDescription = (code) => {
+    if (code === 0) return "Ясно";
+    if (code === 1 || code === 2) return "Переменная облачность";
+    if (code === 3) return "Пасмурно";
+    if (code >= 45 && code <= 48) return "Туман";
+    if (code >= 51 && code <= 55) return "Морось";
+    if (code >= 56 && code <= 57) return "Ледяная морось";
+    if (code >= 61 && code <= 65) return "Дождь";
+    if (code >= 66 && code <= 67) return "Ледяной дождь";
+    if (code >= 71 && code <= 75) return "Снег";
+    if (code === 77) return "Снежная крупа";
+    if (code >= 80 && code <= 82) return "Ливень";
+    if (code >= 85 && code <= 86) return "Снегопад";
+    if (code >= 95 && code <= 99) return "Гроза";
+    return "Облачно";
+  };
+
+  if (loading) {
+    return (
+      <div
+        className="free-card-container"
+        style={{
+          position: "absolute",
+          left: x + "px",
+          top: y + "px",
+          width: 180,
+          height: 180,
+          cursor: isDragging ? "grabbing" : "grab",
+          zIndex: isDragging ? 1000 : 1,
+        }}
+      >
+        <div
+          className="free-card weather-widget"
+          style={{
+            background: "linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)",
+            padding: "0.8rem",
+            width: "100%",
+            height: "100%",
+            cursor: isLocked ? "default" : "grab",
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          {!isLocked && (
+            <button
+              className="card-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(block.id);
+              }}
+              style={{ color: "white" }}
+            >
+              ✕
+            </button>
+          )}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+            }}
+          >
+            <div style={{ textAlign: "center", color: "white" }}>
+              <div style={{ fontSize: "2rem", marginBottom: "8px" }}>⏳</div>
+              <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>
+                Загрузка погоды...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="free-card-container"
+        style={{
+          position: "absolute",
+          left: x + "px",
+          top: y + "px",
+          width: 180,
+          height: 180,
+          cursor: isDragging ? "grabbing" : "grab",
+          zIndex: isDragging ? 1000 : 1,
+        }}
+      >
+        <div
+          className="free-card weather-widget"
+          style={{
+            background: "linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)",
+            padding: "0.8rem",
+            width: "100%",
+            height: "100%",
+            cursor: isLocked ? "default" : "grab",
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          {!isLocked && (
+            <button
+              className="card-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(block.id);
+              }}
+              style={{ color: "white" }}
+            >
+              ✕
+            </button>
+          )}
+          <div
+            className="weather-error"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              textAlign: "center",
+              gap: "8px",
+              color: "white",
+            }}
+          >
+            <div style={{ fontSize: "2rem" }}>⚠️</div>
+            <div style={{ fontSize: "0.8rem" }}>{error}</div>
+            <button
+              onClick={getLocationAndWeather}
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                border: "none",
+                color: "white",
+                padding: "6px 12px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                fontSize: "0.8rem",
+              }}
+            >
+              Повторить
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="free-card-container"
+      style={{
+        position: "absolute",
+        left: x + "px",
+        top: y + "px",
+        width: 180,
+        height: 180,
+        cursor: isDragging ? "grabbing" : "grab",
+        zIndex: isDragging ? 1000 : 1,
+      }}
+    >
+      <div
+        className="free-card weather-widget"
+        style={{
+          background: "linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)",
+          padding: "0.8rem",
+          width: "100%",
+          height: "100%",
+          cursor: isLocked ? "default" : "grab",
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        {!isLocked && (
+          <button
+            className="card-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(block.id);
+            }}
+            style={{ color: "white" }}
+          >
+            ✕
+          </button>
+        )}
+        <div
+          className="weather-location"
+          style={{
+            fontSize: "0.9rem",
+            opacity: 0.9,
+            marginBottom: "0.5rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            color: "white",
+          }}
+        >
+          <span>📍</span>
+          <span>{weather?.city}</span>
+        </div>
+        <div
+          className="weather-temp"
+          style={{
+            fontSize: "3rem",
+            fontWeight: "bold",
+            lineHeight: 1,
+            margin: "0.5rem 0",
+            color: "white",
+          }}
+        >
+          {weather?.temp}°
+        </div>
+        <div
+          className="weather-condition"
+          style={{
+            fontSize: "0.9rem",
+            opacity: 0.9,
+            marginBottom: "0.5rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            color: "white",
+          }}
+        >
+          <span style={{ fontSize: "1.2rem" }}>
+            {getWeatherIcon(weather?.weatherCode)}
+          </span>
+          {getWeatherDescription(weather?.weatherCode)}
+        </div>
+        <div
+          className="weather-details"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "auto",
+            fontSize: "0.7rem",
+            opacity: 0.8,
+            color: "white",
+          }}
+        >
+          <div
+            className="weather-detail"
+            style={{ display: "flex", alignItems: "center", gap: "4px" }}
+          >
+            <span>💨</span>
+            <span>{weather?.windSpeed} м/с</span>
+          </div>
+          <div
+            className="weather-detail"
+            style={{ display: "flex", alignItems: "center", gap: "4px" }}
+          >
+            <span>🧭</span>
+            <span>{weather?.windDirection}°</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ========== РАБОЧИЙ СТОЛ ==========
 const Workspace = ({
   desktop,
@@ -1041,6 +1455,24 @@ const Workspace = ({
       height: 360,
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
+    };
+    updateBlocks([...blocks, newBlock]);
+    setIsMenuOpen(false);
+  };
+
+  const addWeatherBlock = () => {
+    const maxX = Math.max(
+      50,
+      ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
+    );
+    const newBlock = {
+      id: Date.now(),
+      type: "weather",
+      title: "Погода",
+      x: maxX + 20,
+      y: 50,
+      width: 180,
+      height: 180,
     };
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
@@ -1129,6 +1561,10 @@ const Workspace = ({
               <span>📅</span>
               <span>Добавить календарь</span>
             </button>
+            <button className="menu-item" onClick={addWeatherBlock}>
+              <span>🌤️</span>
+              <span>Добавить погоду</span>
+            </button>
             <button className="menu-item" onClick={onOpenCustomize}>
               <span>🎨</span>
               <span>Настройка цветов</span>
@@ -1188,6 +1624,17 @@ const Workspace = ({
                 isLocked={isLocked}
               />
             );
+          if (block.type === "weather")
+            return (
+              <WeatherWidget
+                key={block.id}
+                block={block}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                colors={colors}
+                isLocked={isLocked}
+              />
+            );
           return (
             <TaskBlock
               key={block.id}
@@ -1219,6 +1666,10 @@ const Workspace = ({
           <button className="menu-item" onClick={addCalendarBlock}>
             <span>📅</span>
             <span>Добавить календарь</span>
+          </button>
+          <button className="menu-item" onClick={addWeatherBlock}>
+            <span>🌤️</span>
+            <span>Добавить погоду</span>
           </button>
           <button className="menu-item" onClick={onOpenCustomize}>
             <span>🎨</span>
