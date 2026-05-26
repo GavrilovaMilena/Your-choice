@@ -286,7 +286,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const resizeStartMouseX = useRef(0),
     resizeStartMouseY = useRef(0);
 
-  // Синхронизация с пропсами
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
     setY(block.y !== undefined ? block.y : 50);
@@ -340,7 +339,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   }, [tasks, height]);
 
-  // Drag handlers
   const handleDragStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
@@ -354,10 +352,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
-    const newX = e.clientX - dragStartX.current;
-    const newY = e.clientY - dragStartY.current;
-    setX(newX);
-    setY(newY);
+    setX(e.clientX - dragStartX.current);
+    setY(e.clientY - dragStartY.current);
   };
 
   const handleDragEnd = () => {
@@ -369,7 +365,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   };
 
-  // Resize handlers
   const handleResizeStart = (e) => {
     if (isLocked) return;
     e.preventDefault();
@@ -385,10 +380,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (!isResizing) return;
     const deltaX = e.clientX - resizeStartMouseX.current;
     const deltaY = e.clientY - resizeStartMouseY.current;
-    const newWidth = Math.max(420, resizeStartWidth.current + deltaX);
-    const newHeight = Math.max(420, resizeStartHeight.current + deltaY);
-    setWidth(newWidth);
-    setHeight(newHeight);
+    setWidth(Math.max(420, resizeStartWidth.current + deltaX));
+    setHeight(Math.max(420, resizeStartHeight.current + deltaY));
   };
 
   const handleResizeEnd = () => {
@@ -398,7 +391,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   };
 
-  // Global event listeners
   useEffect(() => {
     if (isDragging || isResizing) {
       const moveHandler = (e) => {
@@ -630,7 +622,7 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// ========== КАЛЕНДАРЬ ==========
+// ========== КАЛЕНДАРЬ (адаптивный) ==========
 const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [currentDate, setCurrentDate] = useState(() =>
     block.currentDate ? new Date(block.currentDate) : new Date(),
@@ -640,8 +632,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
   const [x, setX] = useState(block.x || 50);
   const [y, setY] = useState(block.y || 50);
-  const [width, setWidth] = useState(block.width || 320);
-  const [height, setHeight] = useState(block.height || 280);
+  const [width, setWidth] = useState(Math.max(350, block.width || 380));
+  const [height, setHeight] = useState(Math.max(320, block.height || 360));
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const dragStartX = useRef(0),
@@ -656,8 +648,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
     setY(block.y !== undefined ? block.y : 50);
-    setWidth(block.width !== undefined ? block.width : 320);
-    setHeight(block.height !== undefined ? block.height : 280);
+    setWidth(Math.max(350, block.width !== undefined ? block.width : 380));
+    setHeight(Math.max(320, block.height !== undefined ? block.height : 360));
     if (block.currentDate) setCurrentDate(new Date(block.currentDate));
     if (block.selectedDate) setSelectedDate(new Date(block.selectedDate));
   }, [block.id, block.x, block.y, block.width, block.height]);
@@ -717,8 +709,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (!isResizing) return;
     const deltaX = e.clientX - resizeStartMouseX.current;
     const deltaY = e.clientY - resizeStartMouseY.current;
-    setWidth(Math.max(320, resizeStartWidth.current + deltaX));
-    setHeight(Math.max(280, resizeStartHeight.current + deltaY));
+    setWidth(Math.max(350, resizeStartWidth.current + deltaX));
+    setHeight(Math.max(320, resizeStartHeight.current + deltaY));
   };
 
   const handleResizeEnd = () => {
@@ -771,6 +763,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     saveChanges();
   };
 
+  // Адаптивный рендер календаря с динамическими размерами
   const renderCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -778,9 +771,23 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     const firstDay = getFirstDayOfMonth(year, month);
     const today = new Date();
     const days = [];
+
+    const isSmall = width < 450;
+    const fontSize = isSmall ? "0.7rem" : "0.85rem";
+    const dayPadding = isSmall ? "4px 2px" : "8px 4px";
+
     let startOffset = firstDay === 0 ? 6 : firstDay - 1;
-    for (let i = 0; i < startOffset; i++)
-      days.push(<div key={`empty-${i}`} className="calendar-day"></div>);
+
+    for (let i = 0; i < startOffset; i++) {
+      days.push(
+        <div
+          key={`empty-${i}`}
+          className="calendar-day"
+          style={{ padding: dayPadding, fontSize }}
+        ></div>,
+      );
+    }
+
     for (let day = 1; day <= daysInMonth; day++) {
       const isSelected =
         selectedDate.getDate() === day &&
@@ -795,14 +802,25 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           key={day}
           className={`calendar-day ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`}
           onClick={() => handleDateClick(day)}
-          style={{ color: isSelected ? "white" : colors.text }}
+          style={{
+            color: isSelected ? "white" : colors.text,
+            padding: dayPadding,
+            fontSize: fontSize,
+          }}
         >
           {day}
         </div>,
       );
     }
+
     return days;
   };
+
+  const isSmall = width < 450;
+  const headerPadding = isSmall ? "6px 10px" : "8px 12px";
+  const headerFontSize = isSmall ? "0.8rem" : "0.9rem";
+  const navBtnSize = isSmall ? "0.9rem" : "1rem";
+  const weekDayFontSize = isSmall ? "0.65rem" : "0.7rem";
 
   const monthNames = [
     "Январь",
@@ -840,6 +858,8 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           borderColor: colors.accent + "80",
           padding: 0,
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
           cursor: isLocked ? "default" : "grab",
         }}
         onMouseDown={handleDragStart}
@@ -855,37 +875,79 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             ✕
           </button>
         )}
-        <div className="calendar-widget">
-          <div className="calendar-header">
+        <div
+          className="calendar-widget"
+          style={{ display: "flex", flexDirection: "column", height: "100%" }}
+        >
+          <div
+            className="calendar-header"
+            style={{ padding: headerPadding, flexShrink: 0 }}
+          >
             <button
               className="calendar-nav-btn"
               onClick={handlePrevMonth}
-              style={{ color: colors.text }}
+              style={{
+                color: colors.text,
+                fontSize: navBtnSize,
+                padding: isSmall ? "2px 6px" : "4px 8px",
+              }}
             >
               ◀
             </button>
             <span
               className="calendar-month-year"
-              style={{ color: colors.text }}
+              style={{
+                color: colors.text,
+                fontSize: headerFontSize,
+                fontWeight: "bold",
+              }}
             >
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </span>
             <button
               className="calendar-nav-btn"
               onClick={handleNextMonth}
-              style={{ color: colors.text }}
+              style={{
+                color: colors.text,
+                fontSize: navBtnSize,
+                padding: isSmall ? "2px 6px" : "4px 8px",
+              }}
             >
               ▶
             </button>
           </div>
-          <div className="calendar-weekdays">
+          <div
+            className="calendar-weekdays"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              textAlign: "center",
+              padding: isSmall ? "4px 0" : "8px 0",
+              fontSize: weekDayFontSize,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
             {weekDays.map((day) => (
               <div key={day} style={{ color: colors.text }}>
                 {day}
               </div>
             ))}
           </div>
-          <div className="calendar-days">{renderCalendar()}</div>
+          <div
+            className="calendar-days"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              flex: 1,
+              padding: isSmall ? "4px" : "8px",
+              gap: isSmall ? "1px" : "2px",
+              overflowY: "auto",
+              minHeight: 0,
+            }}
+          >
+            {renderCalendar()}
+          </div>
         </div>
         {!isLocked && (
           <div className="resize-handle" onMouseDown={handleResizeStart}>
@@ -967,7 +1029,7 @@ const Workspace = ({
   const addCalendarBlock = () => {
     const maxX = Math.max(
       50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 320)),
+      ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
     );
     const newBlock = {
       id: Date.now(),
@@ -975,8 +1037,8 @@ const Workspace = ({
       title: "Календарь",
       x: maxX + 20,
       y: 50,
-      width: 320,
-      height: 280,
+      width: 380,
+      height: 360,
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
     };
