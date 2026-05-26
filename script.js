@@ -284,6 +284,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
+  // ВАЖНО: используем значения из props при инициализации
   const [position, setPosition] = useState({
     x: block.x || 50,
     y: block.y || 50,
@@ -300,21 +301,22 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartPos = useRef({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
 
-  // Синхронизация с пропсами при изменении блока
+  // При обновлении блока извне - обновляем позицию
   useEffect(() => {
     console.log(
-      "🎯 TaskBlock received position from props:",
+      "🎯 TaskBlock updating position from props:",
       block.id,
       "x:",
       block.x,
       "y:",
       block.y,
     );
-    setPosition({
-      x: block.x !== undefined ? block.x : 50,
-      y: block.y !== undefined ? block.y : 50,
-    });
-    setSize({ width: block.width || 420, height: block.height || 420 });
+    if (block.x !== undefined && block.y !== undefined) {
+      setPosition({ x: block.x, y: block.y });
+    }
+    if (block.width !== undefined && block.height !== undefined) {
+      setSize({ width: block.width, height: block.height });
+    }
     setTasks(block.tasks || []);
   }, [block.id, block.x, block.y, block.width, block.height]);
 
@@ -548,17 +550,16 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   useEffect(() => {
     console.log(
-      "🎯 ClockWidget received position from props:",
+      "🎯 ClockWidget updating position from props:",
       block.id,
       "x:",
       block.x,
       "y:",
       block.y,
     );
-    setPosition({
-      x: block.x !== undefined ? block.x : 50,
-      y: block.y !== undefined ? block.y : 50,
-    });
+    if (block.x !== undefined && block.y !== undefined) {
+      setPosition({ x: block.x, y: block.y });
+    }
   }, [block.id, block.x, block.y]);
 
   useEffect(() => {
@@ -726,21 +727,19 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 
   useEffect(() => {
     console.log(
-      "🎯 CalendarWidget received position from props:",
+      "🎯 CalendarWidget updating position from props:",
       block.id,
       "x:",
       block.x,
       "y:",
       block.y,
     );
-    setPosition({
-      x: block.x !== undefined ? block.x : 50,
-      y: block.y !== undefined ? block.y : 50,
-    });
-    setSize({
-      width: block.width || 320,
-      height: block.height || 280,
-    });
+    if (block.x !== undefined && block.y !== undefined) {
+      setPosition({ x: block.x, y: block.y });
+    }
+    if (block.width !== undefined && block.height !== undefined) {
+      setSize({ width: block.width, height: block.height });
+    }
     if (block.currentDate) {
       setCurrentDate(new Date(block.currentDate));
     }
