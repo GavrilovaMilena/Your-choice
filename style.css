@@ -1271,3 +1271,52 @@ body:has(.custom-dialog-overlay) .floating-menu-btn {
     max-width: 80px !important;
   }
 }
+
+/* Тултип для кнопки + */
+.menu-tooltip {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2c3e50;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  z-index: 1001;
+  animation: fadeInOut 5s ease forwards;
+  pointer-events: none;
+}
+
+.menu-tooltip-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #2c3e50;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+    visibility: hidden;
+  }
+}

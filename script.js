@@ -1788,6 +1788,16 @@ const Workspace = ({
   const [blocks, setBlocks] = useState(desktop.blocks || []);
   const [showTips, setShowTips] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDraggingMenu, setIsDraggingMenu] = useState(false);
+  const [menuButtonPosition, setMenuButtonPosition] = useState({
+    x: 30,
+    y: 30,
+  });
+  const menuDragStart = useRef({ x: 0, y: 0 });
+  const menuDragStartPos = useRef({ x: 0, y: 0 });
+  const [menuDirection, setMenuDirection] = useState("up"); // 'up' or 'down'
+  const [showMenuTooltip, setShowMenuTooltip] = useState(false);
+  const menuButtonRef = useRef(null);
   const [isGridEnabled, setIsGridEnabled] = useState(
     desktop.isGridEnabled || false,
   );
@@ -1950,6 +1960,47 @@ const Workspace = ({
     }
   };
 
+  const handleMenuDragStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMenu(true);
+    menuDragStart.current = {
+      x: e.clientX - menuButtonPosition.x,
+      y: e.clientY - menuButtonPosition.y,
+    };
+    menuDragStartPos.current = {
+      x: menuButtonPosition.x,
+      y: menuButtonPosition.y,
+    };
+  };
+
+  const handleMenuDragMove = (e) => {
+    if (!isDraggingMenu) return;
+    let newX = e.clientX - menuDragStart.current.x;
+    let newY = e.clientY - menuDragStart.current.y;
+    newX = Math.min(Math.max(newX, 20), window.innerWidth - 70);
+    newY = Math.min(Math.max(newY, 20), window.innerHeight - 70);
+    setMenuButtonPosition({ x: newX, y: newY });
+  };
+
+  const handleMenuDragEnd = () => {
+    if (isDraggingMenu) {
+      setIsDraggingMenu(false);
+      const updated = { ...desktop, menuButtonPosition };
+      onUpdate(updated);
+    }
+    updateMenuDirection();
+  };
+
+  const updateMenuDirection = () => {
+    if (menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setMenuDirection(spaceBelow >= 250 ? "down" : "up");
+    }
+  };
+
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -1963,6 +2014,19 @@ const Workspace = ({
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    if (isDraggingMenu) {
+      const moveHandler = (e) => handleMenuDragMove(e);
+      const upHandler = () => handleMenuDragEnd();
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
+    }
+  }, [isDraggingMenu, menuButtonPosition]);
 
   useEffect(() => {
     setBlocks(desktop.blocks || []);
@@ -2039,13 +2103,44 @@ const Workspace = ({
           </div>
         </div>
         <button
+          ref={menuButtonRef}
           className="floating-menu-btn"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          onMouseDown={handleMenuDragStart}
+          style={{
+            position: "fixed",
+            left: menuButtonPosition.x + "px",
+            top: menuButtonPosition.y + "px",
+            cursor: isDraggingMenu ? "grabbing" : "grab",
+            zIndex: 1000,
+          }}
         >
           +
         </button>
+        {showMenuTooltip && (
+          <div className="menu-tooltip">
+            ✨ Сюда можно добавлять блоки
+            <div className="menu-tooltip-arrow"></div>
+          </div>
+        )}
         {isMenuOpen && (
-          <div className="floating-menu">
+          <div
+            className="floating-menu"
+            style={{
+              position: "fixed",
+              bottom:
+                menuDirection === "up"
+                  ? "auto"
+                  : `${window.innerHeight - menuButtonPosition.y + 10}px`,
+              top:
+                menuDirection === "up"
+                  ? `${menuButtonPosition.y - 10}px`
+                  : "auto",
+              left: menuButtonPosition.x + "px",
+              transform:
+                menuDirection === "up" ? "translateY(-100%)" : "translateY(0)",
+            }}
+          >
             <button className="menu-item" onClick={addTaskBlock}>
               <span>📦</span>
               <span>Добавить блок задач</span>
@@ -2156,13 +2251,44 @@ const Workspace = ({
         })}
       </div>
       <button
+        ref={menuButtonRef}
         className="floating-menu-btn"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
+        onMouseDown={handleMenuDragStart}
+        style={{
+          position: "fixed",
+          left: menuButtonPosition.x + "px",
+          top: menuButtonPosition.y + "px",
+          cursor: isDraggingMenu ? "grabbing" : "grab",
+          zIndex: 1000,
+        }}
       >
         +
       </button>
+      {showMenuTooltip && (
+        <div className="menu-tooltip">
+          ✨ Сюда можно добавлять блоки
+          <div className="menu-tooltip-arrow"></div>
+        </div>
+      )}
       {isMenuOpen && (
-        <div className="floating-menu">
+        <div
+          className="floating-menu"
+          style={{
+            position: "fixed",
+            bottom:
+              menuDirection === "up"
+                ? "auto"
+                : `${window.innerHeight - menuButtonPosition.y + 10}px`,
+            top:
+              menuDirection === "up"
+                ? `${menuButtonPosition.y - 10}px`
+                : "auto",
+            left: menuButtonPosition.x + "px",
+            transform:
+              menuDirection === "up" ? "translateY(-100%)" : "translateY(0)",
+          }}
+        >
           <button className="menu-item" onClick={addTaskBlock}>
             <span>📦</span>
             <span>Добавить блок задач</span>
@@ -2314,6 +2440,27 @@ const App = () => {
   useEffect(() => {
     if (!showStart && desktops.length) saveData(desktops, currentId);
   }, [desktops, currentId, showStart]);
+
+  // Тултип для кнопки + при первом создании стола
+  useEffect(() => {
+    const tooltipShown = localStorage.getItem("floatingMenuTooltipShown");
+    if (!tooltipShown && blocks.length > 0) {
+      setShowMenuTooltip(true);
+      setTimeout(() => {
+        setShowMenuTooltip(false);
+        localStorage.setItem("floatingMenuTooltipShown", "true");
+      }, 5000);
+    }
+  }, [blocks.length]);
+
+  useEffect(() => {
+    setBlocks(desktop.blocks || []);
+    setIsGridEnabled(desktop.isGridEnabled || false);
+    if (desktop.menuButtonPosition) {
+      setMenuButtonPosition(desktop.menuButtonPosition);
+    }
+    setTimeout(() => updateMenuDirection(), 100);
+  }, [desktop.blocks, desktop.isGridEnabled, desktop.menuButtonPosition]);
 
   if (showStart)
     return (
