@@ -1793,60 +1793,8 @@ const Workspace = ({
   );
   const GRID_SIZE = 20;
 
-  // Переменные для перемещаемой кнопки
-  const [isDraggingMenu, setIsDraggingMenu] = useState(false);
-  const [menuButtonPosition, setMenuButtonPosition] = useState(
-    desktop.menuButtonPosition || { x: 30, y: window.innerHeight - 90 },
-  );
-  const [menuDirection, setMenuDirection] = useState("up");
-  const [showMenuTooltip, setShowMenuTooltip] = useState(false);
-  const menuButtonRef = useRef(null);
-  const menuDragStart = useRef({ x: 0, y: 0 });
-  const menuDragStartPos = useRef({ x: 0, y: 0 });
-
   const snapToGrid = (value) => {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
-  };
-
-  // Функции для перемещаемой кнопки
-  const updateMenuDirection = () => {
-    if (menuButtonRef.current) {
-      const rect = menuButtonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      setMenuDirection(spaceBelow >= 250 ? "down" : "up");
-    }
-  };
-
-  const handleMenuDragStart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingMenu(true);
-    menuDragStart.current = {
-      x: e.clientX - menuButtonPosition.x,
-      y: e.clientY - menuButtonPosition.y,
-    };
-    menuDragStartPos.current = {
-      x: menuButtonPosition.x,
-      y: menuButtonPosition.y,
-    };
-  };
-
-  const handleMenuDragMove = (e) => {
-    if (!isDraggingMenu) return;
-    let newX = e.clientX - menuDragStart.current.x;
-    let newY = e.clientY - menuDragStart.current.y;
-    newX = Math.min(Math.max(newX, 20), window.innerWidth - 70);
-    newY = Math.min(Math.max(newY, 20), window.innerHeight - 70);
-    setMenuButtonPosition({ x: newX, y: newY });
-  };
-
-  const handleMenuDragEnd = () => {
-    if (isDraggingMenu) {
-      setIsDraggingMenu(false);
-      onUpdate({ ...desktop, menuButtonPosition });
-    }
-    setTimeout(() => updateMenuDirection(), 50);
   };
 
   useEffect(() => {
@@ -2016,6 +1964,11 @@ const Workspace = ({
     return () => document.removeEventListener("click", handler);
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    setBlocks(desktop.blocks || []);
+    setIsGridEnabled(desktop.isGridEnabled || false);
+  }, [desktop.blocks, desktop.isGridEnabled]);
+
   if (blocks.length === 0) {
     return (
       <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
@@ -2086,44 +2039,13 @@ const Workspace = ({
           </div>
         </div>
         <button
-          ref={menuButtonRef}
           className="floating-menu-btn"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          onMouseDown={handleMenuDragStart}
-          style={{
-            position: "fixed",
-            left: menuButtonPosition.x + "px",
-            top: menuButtonPosition.y + "px",
-            cursor: isDraggingMenu ? "grabbing" : "grab",
-            zIndex: 1000,
-          }}
         >
           +
         </button>
-        {showMenuTooltip && (
-          <div className="menu-tooltip">
-            ✨ Сюда можно добавлять блоки
-            <div className="menu-tooltip-arrow"></div>
-          </div>
-        )}
         {isMenuOpen && (
-          <div
-            className="floating-menu"
-            style={{
-              position: "fixed",
-              bottom:
-                menuDirection === "up"
-                  ? "auto"
-                  : `${window.innerHeight - menuButtonPosition.y + 10}px`,
-              top:
-                menuDirection === "up"
-                  ? `${menuButtonPosition.y - 10}px`
-                  : "auto",
-              left: menuButtonPosition.x + "px",
-              transform:
-                menuDirection === "up" ? "translateY(-100%)" : "translateY(0)",
-            }}
-          >
+          <div className="floating-menu">
             <button className="menu-item" onClick={addTaskBlock}>
               <span>📦</span>
               <span>Добавить блок задач</span>
@@ -2233,47 +2155,14 @@ const Workspace = ({
           );
         })}
       </div>
-
-      {/* Кнопка + после free-canvas */}
       <button
-        ref={menuButtonRef}
         className="floating-menu-btn"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        onMouseDown={handleMenuDragStart}
-        style={{
-          position: "fixed",
-          left: menuButtonPosition.x + "px",
-          top: menuButtonPosition.y + "px",
-          cursor: isDraggingMenu ? "grabbing" : "grab",
-          zIndex: 1000,
-        }}
       >
         +
       </button>
-      {showMenuTooltip && (
-        <div className="menu-tooltip">
-          ✨ Сюда можно добавлять блоки
-          <div className="menu-tooltip-arrow"></div>
-        </div>
-      )}
       {isMenuOpen && (
-        <div
-          className="floating-menu"
-          style={{
-            position: "fixed",
-            bottom:
-              menuDirection === "up"
-                ? "auto"
-                : `${window.innerHeight - menuButtonPosition.y + 10}px`,
-            top:
-              menuDirection === "up"
-                ? `${menuButtonPosition.y - 10}px`
-                : "auto",
-            left: menuButtonPosition.x + "px",
-            transform:
-              menuDirection === "up" ? "translateY(-100%)" : "translateY(0)",
-          }}
-        >
+        <div className="floating-menu">
           <button className="menu-item" onClick={addTaskBlock}>
             <span>📦</span>
             <span>Добавить блок задач</span>
