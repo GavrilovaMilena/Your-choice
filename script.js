@@ -2029,11 +2029,6 @@ const Workspace = ({
     }
   }, [isDraggingMenu, menuButtonPosition]);
 
-  useEffect(() => {
-    setBlocks(desktop.blocks || []);
-    setIsGridEnabled(desktop.isGridEnabled || false);
-  }, [desktop.blocks, desktop.isGridEnabled]);
-
   if (blocks.length === 0) {
     return (
       <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
@@ -2441,18 +2436,6 @@ const App = () => {
   useEffect(() => {
     if (!showStart && desktops.length) saveData(desktops, currentId);
   }, [desktops, currentId, showStart]);
-
-  // Тултип для кнопки + при первом создании стола
-  useEffect(() => {
-    const tooltipShown = localStorage.getItem("floatingMenuTooltipShown");
-    if (!tooltipShown && blocks.length > 0) {
-      setShowMenuTooltip(true);
-      setTimeout(() => {
-        setShowMenuTooltip(false);
-        localStorage.setItem("floatingMenuTooltipShown", "true");
-      }, 5000);
-    }
-  }, [blocks.length]);
 
   useEffect(() => {
     setBlocks(desktop.blocks || []);
