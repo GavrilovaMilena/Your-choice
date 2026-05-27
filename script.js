@@ -88,6 +88,48 @@ const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
   );
 };
 
+// ========== ДИАЛОГ ДЛЯ ИЗМЕНЕНИЯ НАЗВАНИЯ БЛОКА ==========
+const BlockRenameDialog = ({
+  isOpen,
+  title,
+  defaultValue,
+  onConfirm,
+  onCancel,
+}) => {
+  const [value, setValue] = useState(defaultValue || "");
+  useEffect(() => setValue(defaultValue || ""), [defaultValue, isOpen]);
+  if (!isOpen) return null;
+  return (
+    <div className="custom-dialog-overlay" onClick={onCancel}>
+      <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-header">
+          <h3>{title}</h3>
+        </div>
+        <div className="dialog-body">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && onConfirm(value)}
+            autoFocus
+          />
+        </div>
+        <div className="dialog-footer">
+          <button className="dialog-btn dialog-btn-cancel" onClick={onCancel}>
+            Отмена
+          </button>
+          <button
+            className="dialog-btn dialog-btn-confirm"
+            onClick={() => onConfirm(value)}
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ========== СТАРТОВЫЙ ЭКРАН ==========
 const StartScreen = ({ onStart }) => {
   const [isAnimating, setIsAnimating] = useState(false);
@@ -132,16 +174,23 @@ const StartScreen = ({ onStart }) => {
   );
 };
 
-// ========== УВЕДОМЛЕНИЕ ==========
+// ========== УВЕДОМЛЕНИЕ (исправленное - не закрывается автоматически) ==========
 const TipsNotification = ({ onClose, onDontShowAgain }) => {
-  const [dontShow, setDontShow] = useState(false);
+  const [dontShow, setDontShow] = useState(() => {
+    return localStorage.getItem("skyPlanner_dontShowTips") === "true";
+  });
+
   const handleDontShowChange = (e) => {
     setDontShow(e.target.checked);
     if (e.target.checked) {
-      onDontShowAgain();
-      setTimeout(onClose, 300);
+      localStorage.setItem("skyPlanner_dontShowTips", "true");
+    } else {
+      localStorage.setItem("skyPlanner_dontShowTips", "false");
     }
   };
+
+  if (dontShow) return null;
+
   return (
     <div className="tips-notification">
       <div className="notification-header">
@@ -157,8 +206,16 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">➕ Добавляй новые блоки через кнопку +</div>
         <div className="tip-item">🕐 Добавляй часы через меню</div>
         <div className="tip-item">📅 Добавляй календарь через меню</div>
-        <div className="tip-item">🌤️ Добавляй погоду через меню</div>
-        <div className="tip-item">✏️ Изменяй название блока кнопкой ✏️</div>
+        <div className="tip-item">📝 Добавляй текстовый блок через меню</div>
+        <div className="tip-item">
+          ✏️ Дважды кликни по заголовку блока, чтобы изменить название
+        </div>
+        <div className="tip-item">
+          📄 Экспортируй содержимое в PDF через меню блока
+        </div>
+        <div className="tip-item">
+          ⊞ Включай сетку для точного позиционирования блоков
+        </div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -268,17 +325,25 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// ========== БЛОК ЗАДАЧ (исправленный - задачи доступны при заблокированном экране) ==========
-const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
-  const [tasks, setTasks] = useState(block.tasks || []);
-  const [newTask, setNewTask] = useState("");
+// ========== ТЕКСТОВЫЙ БЛОК ==========
+const TextBlock = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
+  const [content, setContent] = useState(block.content || "");
   const [x, setX] = useState(block.x || 50);
   const [y, setY] = useState(block.y || 50);
-  const [width, setWidth] = useState(block.width || 420);
-  const [height, setHeight] = useState(block.height || 420);
+  const [width, setWidth] = useState(block.width || 380);
+  const [height, setHeight] = useState(block.height || 300);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const taskListRef = useRef(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
   const dragStartX = useRef(0),
     dragStartY = useRef(0);
   const dragStartPosX = useRef(0),
@@ -291,15 +356,23 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
     setY(block.y !== undefined ? block.y : 50);
-    setWidth(block.width !== undefined ? block.width : 420);
-    setHeight(block.height !== undefined ? block.height : 420);
-    setTasks(block.tasks || []);
-  }, [block.id, block.x, block.y, block.width, block.height]);
+    setWidth(block.width !== undefined ? block.width : 380);
+    setHeight(block.height !== undefined ? block.height : 300);
+    setContent(block.content || "");
+  }, [block.id, block.x, block.y, block.width, block.height, block.content]);
 
-  const saveChanges = (newX, newY, newWidth, newHeight, newTasks) => {
+  const saveChanges = (
+    newX,
+    newY,
+    newWidth,
+    newHeight,
+    newContent,
+    newTitle,
+  ) => {
     onUpdate({
       ...block,
-      tasks: newTasks !== undefined ? newTasks : tasks,
+      content: newContent !== undefined ? newContent : content,
+      title: newTitle !== undefined ? newTitle : block.title,
       x: newX,
       y: newY,
       width: newWidth,
@@ -307,39 +380,64 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     });
   };
 
-  const addTask = () => {
-    if (!newTask.trim()) return;
-    const newTasks = [
-      ...tasks,
-      { id: Date.now(), text: newTask, completed: false },
-    ];
-    setTasks(newTasks);
-    saveChanges(x, y, width, height, newTasks);
-    setNewTask("");
+  const handleContentChange = (e) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    saveChanges(x, y, width, height, newContent, undefined);
   };
 
-  const toggleTask = (id) => {
-    const newTasks = tasks.map((t) =>
-      t.id === id ? { ...t, completed: !t.completed } : t,
-    );
-    setTasks(newTasks);
-    saveChanges(x, y, width, height, newTasks);
+  const handleRename = (newTitle) => {
+    if (newTitle && newTitle.trim()) {
+      saveChanges(x, y, width, height, undefined, newTitle.trim());
+    }
+    setShowRenameDialog(false);
+    setShowMenu(false);
   };
 
-  const deleteTask = (id) => {
-    const newTasks = tasks.filter((t) => t.id !== id);
-    setTasks(newTasks);
-    saveChanges(x, y, width, height, newTasks);
+  const exportToPDF = () => {
+    let contentHtml = content.replace(/\n/g, "<br>");
+
+    let pdfContent = `
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${block.title || "Текстовый блок"}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
+                    .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
+                    .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <h1>${block.title || "Текстовый блок"}</h1>
+                <div class="content">${contentHtml || "<em>Пусто</em>"}</div>
+                <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
+            </body>
+            </html>
+        `;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(pdfContent);
+    printWindow.document.close();
+    printWindow.print();
+
+    setShowMenu(false);
   };
 
   useEffect(() => {
-    if (taskListRef.current) {
-      taskListRef.current.style.overflowY =
-        taskListRef.current.scrollHeight > taskListRef.current.clientHeight
-          ? "auto"
-          : "hidden";
-    }
-  }, [tasks, height]);
+    const handleClickOutside = (e) => {
+      if (
+        showMenu &&
+        !e.target.closest(".block-menu") &&
+        !e.target.closest(".menu-trigger")
+      ) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showMenu]);
 
   const handleDragStart = (e) => {
     if (isLocked) return;
@@ -362,7 +460,433 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
-        saveChanges(x, y, width, height, undefined);
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
+        saveChanges(newX, newY, width, height, undefined, undefined);
+      }
+    }
+  };
+
+  const handleResizeStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeStartWidth.current = width;
+    resizeStartHeight.current = height;
+    resizeStartMouseX.current = e.clientX;
+    resizeStartMouseY.current = e.clientY;
+    setIsResizing(true);
+  };
+
+  const handleResizeMove = (e) => {
+    if (!isResizing) return;
+    const deltaX = e.clientX - resizeStartMouseX.current;
+    const deltaY = e.clientY - resizeStartMouseY.current;
+    setWidth(Math.max(280, resizeStartWidth.current + deltaX));
+    setHeight(Math.max(200, resizeStartHeight.current + deltaY));
+  };
+
+  const handleResizeEnd = () => {
+    if (isResizing) {
+      setIsResizing(false);
+      saveChanges(x, y, width, height, undefined, undefined);
+    }
+  };
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      const moveHandler = (e) => {
+        if (isDragging) handleDragMove(e);
+        if (isResizing) handleResizeMove(e);
+      };
+      const upHandler = () => {
+        if (isDragging) handleDragEnd();
+        if (isResizing) handleResizeEnd();
+      };
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
+    }
+  }, [isDragging, isResizing, x, y, width, height]);
+
+  return (
+    <div
+      className="free-card-container"
+      style={{
+        position: "absolute",
+        left: x + "px",
+        top: y + "px",
+        width: width + "px",
+        height: height + "px",
+        cursor: isDragging ? "grabbing" : "default",
+        zIndex: isDragging || isResizing ? 1000 : 1,
+      }}
+    >
+      <div
+        className="free-card"
+        style={{
+          backgroundColor: colors.cardBg,
+          borderColor: colors.accent + "80",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {!isLocked && (
+          <button className="card-delete" onClick={() => onDelete(block.id)}>
+            ✕
+          </button>
+        )}
+        <div
+          className="card-header card-drag-handle"
+          style={{ cursor: isLocked ? "default" : "grab" }}
+          onMouseDown={handleDragStart}
+        >
+          <div className="card-title">
+            <span>{block.icon || "📝"}</span>
+            <span
+              style={{ color: colors.accent, cursor: "pointer" }}
+              onDoubleClick={() => !isLocked && setShowRenameDialog(true)}
+              title="Дважды кликни для изменения названия"
+            >
+              {block.title}
+            </span>
+            {!isLocked && (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  marginLeft: "8px",
+                }}
+              >
+                <button
+                  className="menu-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(!showMenu);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.5rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  ⋮
+                </button>
+                {showMenu && (
+                  <div
+                    className="block-menu"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      background: "white",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                      zIndex: 100,
+                      minWidth: "150px",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setShowRenameDialog(true);
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✏️ Переименовать
+                    </button>
+                    <button
+                      onClick={exportToPDF}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      📄 Экспорт в PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {!isLocked ? (
+            <textarea
+              className="text-block-content"
+              value={content}
+              onChange={handleContentChange}
+              placeholder="Введите текст здесь..."
+              style={{
+                width: "100%",
+                height: "100%",
+                padding: "8px",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                resize: "none",
+                fontFamily: "inherit",
+                fontSize: "0.9rem",
+                backgroundColor: colors.cardBg,
+                color: colors.text,
+                outline: "none",
+              }}
+            />
+          ) : (
+            <div
+              className="text-block-content-readonly"
+              style={{
+                width: "100%",
+                height: "100%",
+                padding: "8px",
+                overflowY: "auto",
+                whiteSpace: "pre-wrap",
+                wordWrap: "break-word",
+                color: colors.text,
+                fontSize: "0.9rem",
+              }}
+            >
+              {content || <em style={{ opacity: 0.5 }}>Пусто</em>}
+            </div>
+          )}
+        </div>
+        {!isLocked && (
+          <div className="resize-handle" onMouseDown={handleResizeStart}>
+            <div></div>
+          </div>
+        )}
+      </div>
+      <BlockRenameDialog
+        isOpen={showRenameDialog}
+        title="Изменить название блока"
+        defaultValue={block.title}
+        onConfirm={handleRename}
+        onCancel={() => setShowRenameDialog(false)}
+      />
+    </div>
+  );
+};
+
+// ========== БЛОК ЗАДАЧ ==========
+const TaskBlock = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
+  const [tasks, setTasks] = useState(block.tasks || []);
+  const [newTask, setNewTask] = useState("");
+  const [x, setX] = useState(block.x || 50);
+  const [y, setY] = useState(block.y || 50);
+  const [width, setWidth] = useState(block.width || 420);
+  const [height, setHeight] = useState(block.height || 420);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const taskListRef = useRef(null);
+  const dragStartX = useRef(0),
+    dragStartY = useRef(0);
+  const dragStartPosX = useRef(0),
+    dragStartPosY = useRef(0);
+  const resizeStartWidth = useRef(0),
+    resizeStartHeight = useRef(0);
+  const resizeStartMouseX = useRef(0),
+    resizeStartMouseY = useRef(0);
+
+  useEffect(() => {
+    setX(block.x !== undefined ? block.x : 50);
+    setY(block.y !== undefined ? block.y : 50);
+    setWidth(block.width !== undefined ? block.width : 420);
+    setHeight(block.height !== undefined ? block.height : 420);
+    setTasks(block.tasks || []);
+  }, [block.id, block.x, block.y, block.width, block.height]);
+
+  const saveChanges = (newX, newY, newWidth, newHeight, newTasks, newTitle) => {
+    onUpdate({
+      ...block,
+      tasks: newTasks !== undefined ? newTasks : tasks,
+      title: newTitle !== undefined ? newTitle : block.title,
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+    });
+  };
+
+  const addTask = () => {
+    if (!newTask.trim()) return;
+    const newTasks = [
+      ...tasks,
+      { id: Date.now(), text: newTask, completed: false },
+    ];
+    setTasks(newTasks);
+    saveChanges(x, y, width, height, newTasks, undefined);
+    setNewTask("");
+  };
+
+  const toggleTask = (id) => {
+    const newTasks = tasks.map((t) =>
+      t.id === id ? { ...t, completed: !t.completed } : t,
+    );
+    setTasks(newTasks);
+    saveChanges(x, y, width, height, newTasks, undefined);
+  };
+
+  const deleteTask = (id) => {
+    const newTasks = tasks.filter((t) => t.id !== id);
+    setTasks(newTasks);
+    saveChanges(x, y, width, height, newTasks, undefined);
+  };
+
+  const handleRename = (newTitle) => {
+    if (newTitle && newTitle.trim()) {
+      saveChanges(x, y, width, height, undefined, newTitle.trim());
+    }
+    setShowRenameDialog(false);
+    setShowMenu(false);
+  };
+
+  const exportToPDF = () => {
+    const completedTasks = tasks.filter((t) => t.completed);
+    const pendingTasks = tasks.filter((t) => !t.completed);
+
+    let content = `
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${block.title || "Список задач"}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
+                    h2 { color: #7f8c8d; margin-top: 20px; }
+                    .task-list { list-style: none; padding: 0; }
+                    .task-item { padding: 8px 0; border-bottom: 1px solid #ecf0f1; }
+                    .completed { text-decoration: line-through; color: #95a5a6; }
+                    .pending { color: #2c3e50; }
+                    .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
+                    .stats { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ecf0f1; font-size: 12px; color: #7f8c8d; }
+                </style>
+            </head>
+            <body>
+                <h1>${block.title || "Список задач"}</h1>
+                <p><strong>Статистика:</strong> ✅ ${completedTasks.length} выполнено | 📝 ${pendingTasks.length} в процессе | 📋 ${tasks.length} всего</p>
+        `;
+
+    if (pendingTasks.length > 0) {
+      content += `<h2>📋 Активные задачи</h2><ul class="task-list">`;
+      pendingTasks.forEach((task) => {
+        content += `<li class="task-item pending">☐ ${task.text}</li>`;
+      });
+      content += `</ul>`;
+    }
+
+    if (completedTasks.length > 0) {
+      content += `<h2>✅ Выполненные задачи</h2><ul class="task-list">`;
+      completedTasks.forEach((task) => {
+        content += `<li class="task-item completed">✓ ${task.text}</li>`;
+      });
+      content += `</ul>`;
+    }
+
+    content += `
+                <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
+                <div class="stats">📄 Экспортировано из приложения "Your choice"</div>
+            </body>
+            </html>
+        `;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.print();
+
+    setShowMenu(false);
+  };
+
+  useEffect(() => {
+    if (taskListRef.current) {
+      taskListRef.current.style.overflowY =
+        taskListRef.current.scrollHeight > taskListRef.current.clientHeight
+          ? "auto"
+          : "hidden";
+    }
+  }, [tasks, height]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        showMenu &&
+        !e.target.closest(".block-menu") &&
+        !e.target.closest(".menu-trigger")
+      ) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showMenu]);
+
+  const handleDragStart = (e) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragStartX.current = e.clientX - x;
+    dragStartY.current = e.clientY - y;
+    dragStartPosX.current = x;
+    dragStartPosY.current = y;
+    setIsDragging(true);
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    setX(e.clientX - dragStartX.current);
+    setY(e.clientY - dragStartY.current);
+  };
+
+  const handleDragEnd = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
+        saveChanges(newX, newY, width, height, undefined, undefined);
       }
     }
   };
@@ -389,7 +913,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const handleResizeEnd = () => {
     if (isResizing) {
       setIsResizing(false);
-      saveChanges(x, y, width, height, undefined);
+      saveChanges(x, y, width, height, undefined, undefined);
     }
   };
 
@@ -444,34 +968,85 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         >
           <div className="card-title">
             <span>{block.icon || "📋"}</span>
-            <span style={{ color: colors.accent }}>{block.title}</span>
+            <span
+              style={{ color: colors.accent, cursor: "pointer" }}
+              onDoubleClick={() => !isLocked && setShowRenameDialog(true)}
+              title="Дважды кликни для изменения названия"
+            >
+              {block.title}
+            </span>
             {!isLocked && (
-              <button
-                className="edit-title-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const newTitle = prompt(
-                    "Введите новое название блока:",
-                    block.title,
-                  );
-                  if (newTitle && newTitle.trim()) {
-                    onUpdate({ ...block, title: newTitle.trim() });
-                  }
-                }}
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
+                  position: "relative",
+                  display: "inline-block",
                   marginLeft: "8px",
-                  opacity: 0.6,
-                  transition: "opacity 0.2s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.6)}
               >
-                ✏️
-              </button>
+                <button
+                  className="menu-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(!showMenu);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.5rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  ⋮
+                </button>
+                {showMenu && (
+                  <div
+                    className="block-menu"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      background: "white",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                      zIndex: 100,
+                      minWidth: "150px",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setShowRenameDialog(true);
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✏️ Переименовать
+                    </button>
+                    <button
+                      onClick={exportToPDF}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      📄 Экспорт в PDF
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -494,77 +1069,61 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
               >
                 {task.text}
               </span>
-              <button
-                className="delete-task"
-                onClick={() => deleteTask(task.id)}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  style={{ pointerEvents: "none" }}
+              {!isLocked && (
+                <button
+                  className="delete-task"
+                  onClick={() => deleteTask(task.id)}
                 >
-                  <path
-                    d="M4 7H20"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M10 11V16"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M14 11V16"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M5 7L6 19C6 20.1046 6.89543 21 8 21H16C17.1046 21 18 20.1046 18 19L19 7"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M9 7V4C9 3.44772 9.44772 3 10 3H14C14.5523 3 15 3.44772 15 4V7"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
+                  🗑️
+                </button>
+              )}
             </li>
           ))}
         </ul>
-        <div className="add-task-form">
-          <input
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && addTask()}
-            placeholder="Новая задача..."
-            style={{ color: colors.text }}
-          />
-          <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
-            + Добавить
-          </button>
-        </div>
+        {!isLocked && (
+          <div className="add-task-form">
+            <input
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && addTask()}
+              placeholder="Новая задача..."
+              style={{ color: colors.text }}
+            />
+            <button
+              onClick={addTask}
+              style={{ backgroundColor: colors.accent }}
+            >
+              + Добавить
+            </button>
+          </div>
+        )}
         {!isLocked && (
           <div className="resize-handle" onMouseDown={handleResizeStart}>
             <div></div>
           </div>
         )}
       </div>
+      <BlockRenameDialog
+        isOpen={showRenameDialog}
+        title="Изменить название блока"
+        defaultValue={block.title}
+        onConfirm={handleRename}
+        onCancel={() => setShowRenameDialog(false)}
+      />
     </div>
   );
 };
 
 // ========== ЧАСЫ ==========
-const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+const ClockWidget = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
   const [time, setTime] = useState(new Date());
   const [x, setX] = useState(block.x || 50);
   const [y, setY] = useState(block.y || 50);
@@ -609,6 +1168,16 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
         savePosition();
       }
     }
@@ -691,7 +1260,15 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 };
 
 // ========== КАЛЕНДАРЬ (адаптивный) ==========
-const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+const CalendarWidget = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
   const [currentDate, setCurrentDate] = useState(() =>
     block.currentDate ? new Date(block.currentDate) : new Date(),
   );
@@ -755,6 +1332,16 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
         saveChanges();
       }
     }
@@ -1023,423 +1610,6 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// ========== ПОГОДА ==========
-const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
-  const [weather, setWeather] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [x, setX] = useState(block.x || 50);
-  const [y, setY] = useState(block.y || 50);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartX = useRef(0),
-    dragStartY = useRef(0);
-  const dragStartPosX = useRef(0),
-    dragStartPosY = useRef(0);
-
-  useEffect(() => {
-    setX(block.x !== undefined ? block.x : 50);
-    setY(block.y !== undefined ? block.y : 50);
-  }, [block.id, block.x, block.y]);
-
-  const fetchWeather = (lat, lon) => {
-    setLoading(true);
-    setError(null);
-
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.current_weather) {
-          const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
-          fetch(geoUrl)
-            .then((res) => res.json())
-            .then((geoData) => {
-              const city =
-                geoData.address?.city ||
-                geoData.address?.town ||
-                geoData.address?.village ||
-                "Неизвестно";
-              setWeather({
-                temp: Math.round(data.current_weather.temperature),
-                windSpeed: data.current_weather.windspeed,
-                windDirection: data.current_weather.winddirection,
-                weatherCode: data.current_weather.weathercode,
-                city: city,
-                lat: lat,
-                lon: lon,
-              });
-              setLoading(false);
-            })
-            .catch(() => {
-              setWeather({
-                temp: Math.round(data.current_weather.temperature),
-                windSpeed: data.current_weather.windspeed,
-                windDirection: data.current_weather.winddirection,
-                weatherCode: data.current_weather.weathercode,
-                city: "Текущее местоположение",
-                lat: lat,
-                lon: lon,
-              });
-              setLoading(false);
-            });
-        } else {
-          setError("Не удалось получить данные о погоде");
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Weather fetch error:", err);
-        setError("Ошибка загрузки погоды");
-        setLoading(false);
-      });
-  };
-
-  const getLocationAndWeather = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          onUpdate({ ...block, lat: latitude, lon: longitude });
-          fetchWeather(latitude, longitude);
-        },
-        (err) => {
-          console.error("Geolocation error:", err);
-          setError("Не удалось определить местоположение");
-          setLoading(false);
-        },
-      );
-    } else {
-      setError("Геолокация не поддерживается");
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (block.lat && block.lon) {
-      fetchWeather(block.lat, block.lon);
-    } else {
-      getLocationAndWeather();
-    }
-  }, [block.lat, block.lon]);
-
-  const savePosition = () => {
-    onUpdate({ ...block, x, y });
-  };
-
-  const handleMouseDown = (e) => {
-    if (isLocked) return;
-    e.preventDefault();
-    e.stopPropagation();
-    dragStartX.current = e.clientX - x;
-    dragStartY.current = e.clientY - y;
-    dragStartPosX.current = x;
-    dragStartPosY.current = y;
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    setX(e.clientX - dragStartX.current);
-    setY(e.clientY - dragStartY.current);
-  };
-
-  const handleMouseUp = () => {
-    if (isDragging) {
-      setIsDragging(false);
-      if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
-        savePosition();
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      const moveHandler = (e) => handleMouseMove(e);
-      const upHandler = () => handleMouseUp();
-      window.addEventListener("mousemove", moveHandler);
-      window.addEventListener("mouseup", upHandler);
-      return () => {
-        window.removeEventListener("mousemove", moveHandler);
-        window.removeEventListener("mouseup", upHandler);
-      };
-    }
-  }, [isDragging, x, y]);
-
-  const getWeatherIcon = (code) => {
-    if (code === 0) return "☀️";
-    if (code === 1 || code === 2) return "⛅";
-    if (code === 3) return "☁️";
-    if (code >= 45 && code <= 48) return "🌫️";
-    if (code >= 51 && code <= 55) return "🌧️";
-    if (code >= 56 && code <= 57) return "❄️";
-    if (code >= 61 && code <= 65) return "🌧️";
-    if (code >= 66 && code <= 67) return "❄️";
-    if (code >= 71 && code <= 75) return "❄️";
-    if (code === 77) return "❄️";
-    if (code >= 80 && code <= 82) return "🌧️";
-    if (code >= 85 && code <= 86) return "❄️";
-    if (code >= 95 && code <= 99) return "⛈️";
-    return "🌡️";
-  };
-
-  const getWeatherDescription = (code) => {
-    if (code === 0) return "Ясно";
-    if (code === 1 || code === 2) return "Переменная облачность";
-    if (code === 3) return "Пасмурно";
-    if (code >= 45 && code <= 48) return "Туман";
-    if (code >= 51 && code <= 55) return "Морось";
-    if (code >= 56 && code <= 57) return "Ледяная морось";
-    if (code >= 61 && code <= 65) return "Дождь";
-    if (code >= 66 && code <= 67) return "Ледяной дождь";
-    if (code >= 71 && code <= 75) return "Снег";
-    if (code === 77) return "Снежная крупа";
-    if (code >= 80 && code <= 82) return "Ливень";
-    if (code >= 85 && code <= 86) return "Снегопад";
-    if (code >= 95 && code <= 99) return "Гроза";
-    return "Облачно";
-  };
-
-  if (loading) {
-    return (
-      <div
-        className="free-card-container"
-        style={{
-          position: "absolute",
-          left: x + "px",
-          top: y + "px",
-          width: 180,
-          height: 180,
-          cursor: isDragging ? "grabbing" : "grab",
-          zIndex: isDragging ? 1000 : 1,
-        }}
-      >
-        <div
-          className="free-card weather-widget"
-          style={{
-            background: "linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)",
-            padding: "0.8rem",
-            width: "100%",
-            height: "100%",
-            cursor: isLocked ? "default" : "grab",
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          {!isLocked && (
-            <button
-              className="card-delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(block.id);
-              }}
-              style={{ color: "white" }}
-            >
-              ✕
-            </button>
-          )}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-            }}
-          >
-            <div style={{ textAlign: "center", color: "white" }}>
-              <div style={{ fontSize: "2rem", marginBottom: "8px" }}>⏳</div>
-              <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>
-                Загрузка погоды...
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="free-card-container"
-        style={{
-          position: "absolute",
-          left: x + "px",
-          top: y + "px",
-          width: 180,
-          height: 180,
-          cursor: isDragging ? "grabbing" : "grab",
-          zIndex: isDragging ? 1000 : 1,
-        }}
-      >
-        <div
-          className="free-card weather-widget"
-          style={{
-            background: "linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)",
-            padding: "0.8rem",
-            width: "100%",
-            height: "100%",
-            cursor: isLocked ? "default" : "grab",
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          {!isLocked && (
-            <button
-              className="card-delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(block.id);
-              }}
-              style={{ color: "white" }}
-            >
-              ✕
-            </button>
-          )}
-          <div
-            className="weather-error"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              textAlign: "center",
-              gap: "8px",
-              color: "white",
-            }}
-          >
-            <div style={{ fontSize: "2rem" }}>⚠️</div>
-            <div style={{ fontSize: "0.8rem" }}>{error}</div>
-            <button
-              onClick={getLocationAndWeather}
-              style={{
-                background: "rgba(255,255,255,0.2)",
-                border: "none",
-                color: "white",
-                padding: "6px 12px",
-                borderRadius: "20px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-              }}
-            >
-              Повторить
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="free-card-container"
-      style={{
-        position: "absolute",
-        left: x + "px",
-        top: y + "px",
-        width: 180,
-        height: 180,
-        cursor: isDragging ? "grabbing" : "grab",
-        zIndex: isDragging ? 1000 : 1,
-      }}
-    >
-      <div
-        className="free-card weather-widget"
-        style={{
-          background: "linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)",
-          padding: "0.8rem",
-          width: "100%",
-          height: "100%",
-          cursor: isLocked ? "default" : "grab",
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        {!isLocked && (
-          <button
-            className="card-delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(block.id);
-            }}
-            style={{ color: "white" }}
-          >
-            ✕
-          </button>
-        )}
-        <div
-          className="weather-location"
-          style={{
-            fontSize: "0.9rem",
-            opacity: 0.9,
-            marginBottom: "0.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            color: "white",
-          }}
-        >
-          <span>📍</span>
-          <span>{weather?.city}</span>
-        </div>
-        <div
-          className="weather-temp"
-          style={{
-            fontSize: "2.5rem",
-            fontWeight: "bold",
-            lineHeight: 1,
-            margin: "0.3rem 0",
-            color: "white",
-          }}
-        >
-          {weather?.temp}°
-        </div>
-        <div
-          className="weather-condition"
-          style={{
-            fontSize: "0.8rem",
-            opacity: 0.9,
-            marginBottom: "0.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            color: "white",
-          }}
-        >
-          <span style={{ fontSize: "1rem" }}>
-            {getWeatherIcon(weather?.weatherCode)}
-          </span>
-          {getWeatherDescription(weather?.weatherCode)}
-        </div>
-        <div
-          className="weather-details"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: "auto",
-            fontSize: "0.65rem",
-            opacity: 0.8,
-            color: "white",
-          }}
-        >
-          <div
-            className="weather-detail"
-            style={{ display: "flex", alignItems: "center", gap: "4px" }}
-          >
-            <span>💨</span>
-            <span>{weather?.windSpeed} м/с</span>
-          </div>
-          <div
-            className="weather-detail"
-            style={{ display: "flex", alignItems: "center", gap: "4px" }}
-          >
-            <span>🧭</span>
-            <span>{weather?.windDirection}°</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ========== РАБОЧИЙ СТОЛ ==========
 const Workspace = ({
   desktop,
@@ -1453,115 +1623,166 @@ const Workspace = ({
   const [blocks, setBlocks] = useState(desktop.blocks || []);
   const [showTips, setShowTips] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isGridEnabled, setIsGridEnabled] = useState(
+    desktop.isGridEnabled || false,
+  );
+  const GRID_SIZE = 20;
+
+  const snapToGrid = (value) => {
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  };
 
   useEffect(() => {
-    const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
-    if (!tipsShown) {
+    const tipsShownInCurrentSession = sessionStorage.getItem(
+      "tipsShownForDesktop_" + desktop.id,
+    );
+    if (!tipsShownInCurrentSession && blocks.length > 0) {
       setShowTips(true);
-      localStorage.setItem("skyPlanner_tipsShownInWorkspace", "true");
-      setTimeout(() => setShowTips(false), 8000);
+      sessionStorage.setItem("tipsShownForDesktop_" + desktop.id, "true");
     }
-  }, []);
+  }, [desktop.id, blocks.length]);
+
+  useEffect(() => {
+    onUpdate({ ...desktop, isGridEnabled });
+  }, [isGridEnabled]);
 
   const updateBlocks = (newBlocks) => {
-    console.log("🔄 updateBlocks called, newBlocks length:", newBlocks.length);
     setBlocks(newBlocks);
-    onUpdate({ ...desktop, blocks: newBlocks });
+    onUpdate({ ...desktop, blocks: newBlocks, isGridEnabled });
   };
 
   const addTaskBlock = () => {
-    console.log("📦 addTaskBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
-    );
+    let centerX = (window.innerWidth - 420) / 2;
+    let centerY = (window.innerHeight - 420) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
+
     const newBlock = {
       id: Date.now(),
       type: "task",
       title: "Новый блок задач",
-      icon: "📝",
+      icon: "📋",
       tasks: [],
-      x: maxX + 20,
-      y: 50,
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
       width: 420,
       height: 420,
     };
-    console.log("➕ Adding new task block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addClockBlock = () => {
-    console.log("🕐 addClockBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
-    );
+    let centerX = (window.innerWidth - 180) / 2;
+    let centerY = (window.innerHeight - 140) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
+
     const newBlock = {
       id: Date.now(),
       type: "clock",
       title: "Часы",
       clockType: "digital",
-      x: maxX + 20,
-      y: 50,
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
       width: 180,
       height: 140,
     };
-    console.log("➕ Adding new clock block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addCalendarBlock = () => {
-    console.log("📅 addCalendarBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
-    );
+    let centerX = (window.innerWidth - 380) / 2;
+    let centerY = (window.innerHeight - 360) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
+
     const newBlock = {
       id: Date.now(),
       type: "calendar",
       title: "Календарь",
-      x: maxX + 20,
-      y: 50,
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
       width: 380,
       height: 360,
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
     };
-    console.log("➕ Adding new calendar block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
-  const addWeatherBlock = () => {
-    console.log("🌤️ addWeatherBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
-    );
+  const addTextBlock = () => {
+    let centerX = (window.innerWidth - 380) / 2;
+    let centerY = (window.innerHeight - 300) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
+
     const newBlock = {
       id: Date.now(),
-      type: "weather",
-      title: "Погода",
-      x: maxX + 20,
-      y: 50,
-      width: 180,
-      height: 180,
+      type: "text",
+      title: "Текстовый блок",
+      icon: "📝",
+      content: "",
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
+      width: 380,
+      height: 300,
     };
-    console.log("➕ Adding new weather block:", newBlock.id);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const deleteBlock = (id) => {
-    console.log("❌ deleteBlock called, id:", id);
     updateBlocks(blocks.filter((b) => b.id !== id));
   };
 
   const updateBlock = (updated) => {
-    console.log("🔄 updateBlock called, id:", updated.id);
-    updateBlocks(blocks.map((b) => (b.id === updated.id ? updated : b)));
+    let newX = updated.x;
+    let newY = updated.y;
+
+    if (isGridEnabled) {
+      newX = snapToGrid(updated.x);
+      newY = snapToGrid(updated.y);
+    }
+
+    updateBlocks(
+      blocks.map((b) =>
+        b.id === updated.id ? { ...updated, x: newX, y: newY } : b,
+      ),
+    );
+  };
+
+  const toggleGrid = () => {
+    const newGridState = !isGridEnabled;
+    setIsGridEnabled(newGridState);
+
+    if (newGridState) {
+      const snappedBlocks = blocks.map((block) => ({
+        ...block,
+        x: snapToGrid(block.x),
+        y: snapToGrid(block.y),
+      }));
+      setBlocks(snappedBlocks);
+      onUpdate({
+        ...desktop,
+        blocks: snappedBlocks,
+        isGridEnabled: newGridState,
+      });
+    }
   };
 
   useEffect(() => {
@@ -1579,9 +1800,9 @@ const Workspace = ({
   }, [isMenuOpen]);
 
   useEffect(() => {
-    console.log("📀 Syncing blocks from desktop:", desktop.blocks?.length);
     setBlocks(desktop.blocks || []);
-  }, [desktop.blocks]);
+    setIsGridEnabled(desktop.isGridEnabled || false);
+  }, [desktop.blocks, desktop.isGridEnabled]);
 
   if (blocks.length === 0) {
     return (
@@ -1590,44 +1811,67 @@ const Workspace = ({
           <button className="back-btn" onClick={onBack}>
             ← Назад к столам
           </button>
-          <button className="lock-btn" onClick={onToggleLock}>
-            {isLocked ? "🔒" : "🔓"}
-          </button>
+          <div className="control-buttons">
+            <button
+              className={`grid-btn ${isGridEnabled ? "active" : ""}`}
+              onClick={toggleGrid}
+              title="Включить/выключить сетку"
+            >
+              ⊞
+            </button>
+            <button className="lock-btn" onClick={onToggleLock}>
+              {isLocked ? "🔒" : "🔓"}
+            </button>
+          </div>
         </div>
         <div
+          className="free-canvas"
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "calc(100vh - 120px)",
-            textAlign: "center",
-            padding: "2rem",
+            position: "relative",
+            minHeight: "calc(100vh - 80px)",
+            overflow: "hidden",
           }}
         >
-          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
-          <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
-            Пока тут пусто🥺
-          </h3>
-          <p
-            style={{ color: colors.text, opacity: 0.7, marginBottom: "1.5rem" }}
-          >
-            Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
-          </p>
-          <button
-            onClick={addTaskBlock}
+          {isGridEnabled && <div className="grid-overlay"></div>}
+          <div
             style={{
-              backgroundColor: colors.accent,
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: "40px",
-              fontSize: "1rem",
-              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              textAlign: "center",
+              padding: "2rem",
             }}
           >
-            <span>➕</span> Добавить первый блок
-          </button>
+            <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
+            <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
+              Пока тут пусто🥺
+            </h3>
+            <p
+              style={{
+                color: colors.text,
+                opacity: 0.7,
+                marginBottom: "1.5rem",
+              }}
+            >
+              Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
+            </p>
+            <button
+              onClick={addTaskBlock}
+              style={{
+                backgroundColor: colors.accent,
+                color: "white",
+                border: "none",
+                padding: "12px 24px",
+                borderRadius: "40px",
+                fontSize: "1rem",
+                cursor: "pointer",
+              }}
+            >
+              <span>➕</span> Добавить первый блок
+            </button>
+          </div>
         </div>
         <button
           className="floating-menu-btn"
@@ -1641,6 +1885,10 @@ const Workspace = ({
               <span>📦</span>
               <span>Добавить блок задач</span>
             </button>
+            <button className="menu-item" onClick={addTextBlock}>
+              <span>📝</span>
+              <span>Добавить текстовый блок</span>
+            </button>
             <button className="menu-item" onClick={addClockBlock}>
               <span>🕐</span>
               <span>Добавить часы</span>
@@ -1649,24 +1897,13 @@ const Workspace = ({
               <span>📅</span>
               <span>Добавить календарь</span>
             </button>
-            <button className="menu-item" onClick={addWeatherBlock}>
-              <span>🌤️</span>
-              <span>Добавить погоду</span>
-            </button>
             <button className="menu-item" onClick={onOpenCustomize}>
               <span>🎨</span>
               <span>Настройка цветов</span>
             </button>
           </div>
         )}
-        {showTips && (
-          <TipsNotification
-            onClose={() => setShowTips(false)}
-            onDontShowAgain={() =>
-              localStorage.setItem("skyPlanner_dontShowTips", "true")
-            }
-          />
-        )}
+        {showTips && <TipsNotification onClose={() => setShowTips(false)} />}
       </div>
     );
   }
@@ -1677,9 +1914,18 @@ const Workspace = ({
         <button className="back-btn" onClick={onBack}>
           ← Назад к столам
         </button>
-        <button className="lock-btn" onClick={onToggleLock}>
-          {isLocked ? "🔒" : "🔓"}
-        </button>
+        <div className="control-buttons">
+          <button
+            className={`grid-btn ${isGridEnabled ? "active" : ""}`}
+            onClick={toggleGrid}
+            title="Включить/выключить сетку"
+          >
+            ⊞
+          </button>
+          <button className="lock-btn" onClick={onToggleLock}>
+            {isLocked ? "🔒" : "🔓"}
+          </button>
+        </div>
       </div>
       <div
         className="free-canvas"
@@ -1689,6 +1935,7 @@ const Workspace = ({
           overflow: "hidden",
         }}
       >
+        {isGridEnabled && <div className="grid-overlay"></div>}
         {blocks.map((block) => {
           if (block.type === "clock")
             return (
@@ -1699,6 +1946,8 @@ const Workspace = ({
                 onDelete={deleteBlock}
                 colors={colors}
                 isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
               />
             );
           if (block.type === "calendar")
@@ -1710,17 +1959,21 @@ const Workspace = ({
                 onDelete={deleteBlock}
                 colors={colors}
                 isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
               />
             );
-          if (block.type === "weather")
+          if (block.type === "text")
             return (
-              <WeatherWidget
+              <TextBlock
                 key={block.id}
                 block={block}
                 onUpdate={updateBlock}
                 onDelete={deleteBlock}
                 colors={colors}
                 isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
               />
             );
           return (
@@ -1731,6 +1984,8 @@ const Workspace = ({
               onDelete={deleteBlock}
               colors={colors}
               isLocked={isLocked}
+              isGridEnabled={isGridEnabled}
+              snapToGrid={snapToGrid}
             />
           );
         })}
@@ -1747,6 +2002,10 @@ const Workspace = ({
             <span>📦</span>
             <span>Добавить блок задач</span>
           </button>
+          <button className="menu-item" onClick={addTextBlock}>
+            <span>📝</span>
+            <span>Добавить текстовый блок</span>
+          </button>
           <button className="menu-item" onClick={addClockBlock}>
             <span>🕐</span>
             <span>Добавить часы</span>
@@ -1755,24 +2014,13 @@ const Workspace = ({
             <span>📅</span>
             <span>Добавить календарь</span>
           </button>
-          <button className="menu-item" onClick={addWeatherBlock}>
-            <span>🌤️</span>
-            <span>Добавить погоду</span>
-          </button>
           <button className="menu-item" onClick={onOpenCustomize}>
             <span>🎨</span>
             <span>Настройка цветов</span>
           </button>
         </div>
       )}
-      {showTips && (
-        <TipsNotification
-          onClose={() => setShowTips(false)}
-          onDontShowAgain={() =>
-            localStorage.setItem("skyPlanner_dontShowTips", "true")
-          }
-        />
-      )}
+      {showTips && <TipsNotification onClose={() => setShowTips(false)} />}
     </div>
   );
 };
