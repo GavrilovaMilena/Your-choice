@@ -956,7 +956,7 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   );
 };
 
-// ========== ПОГОДА ==========
+// ========== ПОГОДА (Яндекс API) ==========
 const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -969,6 +969,9 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const dragStartPosX = useRef(0),
     dragStartPosY = useRef(0);
 
+  // Яндекс API ключ
+  const YANDEX_API_KEY = "cd396d07-e90c-425d-8d0a-c4374b15fc19";
+
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
     setY(block.y !== undefined ? block.y : 50);
@@ -978,51 +981,42 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     setLoading(true);
     setError(null);
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+    const url = `https://api.weather.yandex.ru/v2/informer?lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}&lang=ru_RU`;
 
-    fetch(url)
-      .then((res) => res.json())
+    fetch(url, {
+      headers: {
+        "X-Yandex-API-Key": YANDEX_API_KEY,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        if (data.current_weather) {
-          const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
-          fetch(geoUrl)
-            .then((res) => res.json())
-            .then((geoData) => {
-              const city =
-                geoData.address?.city ||
-                geoData.address?.town ||
-                geoData.address?.village ||
-                "Неизвестно";
-              setWeather({
-                temp: Math.round(data.current_weather.temperature),
-                windSpeed: data.current_weather.windspeed,
-                windDirection: data.current_weather.winddirection,
-                weatherCode: data.current_weather.weathercode,
-                city: city,
-                lat: lat,
-                lon: lon,
-              });
-              setLoading(false);
-            })
-            .catch(() => {
-              setWeather({
-                temp: Math.round(data.current_weather.temperature),
-                windSpeed: data.current_weather.windspeed,
-                windDirection: data.current_weather.winddirection,
-                weatherCode: data.current_weather.weathercode,
-                city: "Текущее местоположение",
-                lat: lat,
-                lon: lon,
-              });
-              setLoading(false);
-            });
+        console.log("Яндекс Погода ответ:", data);
+        if (data && data.fact) {
+          setWeather({
+            temp: data.fact.temp,
+            feelsLike: data.fact.feels_like,
+            condition: data.fact.condition,
+            windSpeed: data.fact.wind_speed,
+            windDir: data.fact.wind_dir,
+            pressure: data.fact.pressure_mm,
+            humidity: data.fact.humidity,
+            city: data.geo_object?.locality?.name || block.city || "Москва",
+            lat: lat,
+            lon: lon,
+          });
+          setLoading(false);
         } else {
           setError("Не удалось получить данные о погоде");
           setLoading(false);
         }
       })
       .catch((err) => {
-        console.error("Weather fetch error:", err);
+        console.error("Яндекс Погода ошибка:", err);
         setError("Ошибка загрузки погоды");
         setLoading(false);
       });
@@ -1038,13 +1032,22 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         },
         (err) => {
           console.error("Geolocation error:", err);
-          setError("Не удалось определить местоположение");
-          setLoading(false);
+          const defaultLat = 55.75;
+          const defaultLon = 37.62;
+          onUpdate({
+            ...block,
+            lat: defaultLat,
+            lon: defaultLon,
+            city: "Москва",
+          });
+          fetchWeather(defaultLat, defaultLon);
         },
       );
     } else {
-      setError("Геолокация не поддерживается");
-      setLoading(false);
+      const defaultLat = 55.75;
+      const defaultLon = 37.62;
+      onUpdate({ ...block, lat: defaultLat, lon: defaultLon, city: "Москва" });
+      fetchWeather(defaultLat, defaultLon);
     }
   };
 
@@ -1099,38 +1102,61 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   }, [isDragging, x, y]);
 
-  const getWeatherIcon = (code) => {
-    if (code === 0) return "☀️";
-    if (code === 1 || code === 2) return "⛅";
-    if (code === 3) return "☁️";
-    if (code >= 45 && code <= 48) return "🌫️";
-    if (code >= 51 && code <= 55) return "🌧️";
-    if (code >= 56 && code <= 57) return "❄️";
-    if (code >= 61 && code <= 65) return "🌧️";
-    if (code >= 66 && code <= 67) return "❄️";
-    if (code >= 71 && code <= 75) return "❄️";
-    if (code === 77) return "❄️";
-    if (code >= 80 && code <= 82) return "🌧️";
-    if (code >= 85 && code <= 86) return "❄️";
-    if (code >= 95 && code <= 99) return "⛈️";
-    return "🌡️";
+  const getWeatherIcon = (condition) => {
+    const icons = {
+      clear: "☀️",
+      "partly-cloudy": "⛅",
+      cloudy: "☁️",
+      overcast: "☁️",
+      "light-rain": "🌧️",
+      rain: "🌧️",
+      "heavy-rain": "🌧️",
+      showers: "🌧️",
+      "wet-snow": "🌨️",
+      "light-snow": "❄️",
+      snow: "❄️",
+      "heavy-snow": "❄️",
+      thunderstorm: "⛈️",
+      "thunderstorm-with-rain": "⛈️",
+      "thunderstorm-with-hail": "⛈️",
+    };
+    return icons[condition] || "🌡️";
   };
 
-  const getWeatherDescription = (code) => {
-    if (code === 0) return "Ясно";
-    if (code === 1 || code === 2) return "Переменная облачность";
-    if (code === 3) return "Пасмурно";
-    if (code >= 45 && code <= 48) return "Туман";
-    if (code >= 51 && code <= 55) return "Морось";
-    if (code >= 56 && code <= 57) return "Ледяная морось";
-    if (code >= 61 && code <= 65) return "Дождь";
-    if (code >= 66 && code <= 67) return "Ледяной дождь";
-    if (code >= 71 && code <= 75) return "Снег";
-    if (code === 77) return "Снежная крупа";
-    if (code >= 80 && code <= 82) return "Ливень";
-    if (code >= 85 && code <= 86) return "Снегопад";
-    if (code >= 95 && code <= 99) return "Гроза";
-    return "Облачно";
+  const getWeatherDescription = (condition) => {
+    const descriptions = {
+      clear: "Ясно",
+      "partly-cloudy": "Переменная облачность",
+      cloudy: "Облачно",
+      overcast: "Пасмурно",
+      "light-rain": "Небольшой дождь",
+      rain: "Дождь",
+      "heavy-rain": "Сильный дождь",
+      showers: "Ливень",
+      "wet-snow": "Мокрый снег",
+      "light-snow": "Небольшой снег",
+      snow: "Снег",
+      "heavy-snow": "Сильный снег",
+      thunderstorm: "Гроза",
+      "thunderstorm-with-rain": "Гроза с дождём",
+      "thunderstorm-with-hail": "Гроза с градом",
+    };
+    return descriptions[condition] || "Облачно";
+  };
+
+  const getWindDirection = (dir) => {
+    const directions = {
+      nw: "СЗ",
+      n: "С",
+      ne: "СВ",
+      e: "В",
+      se: "ЮВ",
+      s: "Ю",
+      sw: "ЮЗ",
+      w: "З",
+      c: "Штиль",
+    };
+    return directions[dir] || dir;
   };
 
   if (loading) {
@@ -1301,9 +1327,9 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         <div
           className="weather-location"
           style={{
-            fontSize: "0.9rem",
+            fontSize: "0.8rem",
             opacity: 0.9,
-            marginBottom: "0.5rem",
+            marginBottom: "0.3rem",
             display: "flex",
             alignItems: "center",
             gap: "4px",
@@ -1311,7 +1337,15 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           }}
         >
           <span>📍</span>
-          <span>{weather?.city}</span>
+          <span
+            style={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {weather?.city || "Москва"}
+          </span>
         </div>
         <div
           className="weather-temp"
@@ -1319,7 +1353,7 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             fontSize: "2.5rem",
             fontWeight: "bold",
             lineHeight: 1,
-            margin: "0.3rem 0",
+            margin: "0.2rem 0",
             color: "white",
           }}
         >
@@ -1328,9 +1362,9 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         <div
           className="weather-condition"
           style={{
-            fontSize: "0.8rem",
+            fontSize: "0.7rem",
             opacity: 0.9,
-            marginBottom: "0.5rem",
+            marginBottom: "0.3rem",
             display: "flex",
             alignItems: "center",
             gap: "4px",
@@ -1338,9 +1372,9 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           }}
         >
           <span style={{ fontSize: "1rem" }}>
-            {getWeatherIcon(weather?.weatherCode)}
+            {getWeatherIcon(weather?.condition)}
           </span>
-          {getWeatherDescription(weather?.weatherCode)}
+          {getWeatherDescription(weather?.condition)}
         </div>
         <div
           className="weather-details"
@@ -1348,24 +1382,31 @@ const WeatherWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             display: "flex",
             justifyContent: "space-between",
             marginTop: "auto",
-            fontSize: "0.65rem",
+            fontSize: "0.6rem",
             opacity: 0.8,
             color: "white",
           }}
         >
           <div
             className="weather-detail"
-            style={{ display: "flex", alignItems: "center", gap: "4px" }}
+            style={{ display: "flex", alignItems: "center", gap: "3px" }}
           >
             <span>💨</span>
             <span>{weather?.windSpeed} м/с</span>
           </div>
           <div
             className="weather-detail"
-            style={{ display: "flex", alignItems: "center", gap: "4px" }}
+            style={{ display: "flex", alignItems: "center", gap: "3px" }}
           >
             <span>🧭</span>
-            <span>{weather?.windDirection}°</span>
+            <span>{getWindDirection(weather?.windDir)}</span>
+          </div>
+          <div
+            className="weather-detail"
+            style={{ display: "flex", alignItems: "center", gap: "3px" }}
+          >
+            <span>💧</span>
+            <span>{weather?.humidity}%</span>
           </div>
         </div>
       </div>
@@ -1962,4 +2003,3 @@ const App = () => {
 
 const root = document.getElementById("root");
 ReactDOM.createRoot(root).render(React.createElement(App));
-
