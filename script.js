@@ -2002,15 +2002,6 @@ const Workspace = ({
     }
   };
 
-  const handleMenuDragEnd = () => {
-    if (isDraggingMenu) {
-      setIsDraggingMenu(false);
-      const updated = { ...desktop, menuButtonPosition };
-      onUpdate(updated);
-    }
-    updateMenuDirection();
-  };
-
   useEffect(() => {
     const handler = (e) => {
       if (
