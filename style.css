@@ -1286,8 +1286,8 @@ body:has(.custom-dialog-overlay) .floating-menu-btn {
 /* Крестик для календаря — делаем его больше и ярче */
 .calendar-widget + .card-delete,
 .free-card:has(.calendar-widget) .card-delete {
-  top: -14px !important;
-  right: -14px !important;
+  top: 15px !important;
+  right: -26px !important;
   width: 24px !important;
   height: 24px !important;
   font-size: 1rem !important;
