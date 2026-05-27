@@ -1273,3 +1273,27 @@ body:has(.custom-dialog-overlay) .floating-menu-btn {
     max-width: 80px !important;
   }
 }
+
+/* Специально для календаря — чтобы крестик был виден */
+.calendar-widget {
+  overflow: visible !important;
+}
+
+.free-card:has(.calendar-widget) {
+  overflow: visible !important;
+}
+
+/* Крестик для календаря — делаем его больше и ярче */
+.calendar-widget + .card-delete,
+.free-card:has(.calendar-widget) .card-delete {
+  top: -14px !important;
+  right: -14px !important;
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 1.1rem !important;
+  background: #e74c3c !important;
+  box-shadow:
+    0 0 0 2px white,
+    0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  z-index: 1000 !important;
+}
