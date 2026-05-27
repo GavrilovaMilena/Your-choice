@@ -393,6 +393,7 @@ const TextBlock = ({
   const [isResizing, setIsResizing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const dragStartX = useRef(0),
     dragStartY = useRef(0);
   const dragStartPosX = useRef(0),
@@ -401,6 +402,7 @@ const TextBlock = ({
     resizeStartHeight = useRef(0);
   const resizeStartMouseX = useRef(0),
     resizeStartMouseY = useRef(0);
+  const menuButtonRef = useRef(null);
 
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
@@ -447,24 +449,24 @@ const TextBlock = ({
     let contentHtml = content.replace(/\n/g, "<br>");
 
     let pdfContent = `
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>${block.title || "Текстовый блок"}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 20px; }
-                    h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
-                    .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
-                    .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
-                </style>
-            </head>
-            <body>
-                <h1>${block.title || "Текстовый блок"}</h1>
-                <div class="content">${contentHtml || "<em>Пусто</em>"}</div>
-                <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
-            </body>
-            </html>
-        `;
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${block.title || "Текстовый блок"}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
+          .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
+          .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <h1>${block.title || "Текстовый блок"}</h1>
+        <div class="content">${contentHtml || "<em>Пусто</em>"}</div>
+        <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
+      </body>
+      </html>
+    `;
 
     const printWindow = window.open("", "_blank");
     printWindow.document.write(pdfContent);
@@ -478,8 +480,9 @@ const TextBlock = ({
     const handleClickOutside = (e) => {
       if (
         showMenu &&
-        !e.target.closest(".block-menu") &&
-        !e.target.closest(".menu-trigger")
+        !e.target.closest(".block-menu-portal") &&
+        e.target !== menuButtonRef.current &&
+        !menuButtonRef.current?.contains(e.target)
       ) {
         setShowMenu(false);
       }
@@ -487,6 +490,18 @@ const TextBlock = ({
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showMenu]);
+
+  const handleMenuToggle = (e) => {
+    e.stopPropagation();
+    if (menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+      });
+    }
+    setShowMenu(!showMenu);
+  };
 
   const handleDragStart = (e) => {
     if (isLocked) return;
@@ -619,11 +634,9 @@ const TextBlock = ({
                 }}
               >
                 <button
+                  ref={menuButtonRef}
                   className="menu-trigger"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(!showMenu);
-                  }}
+                  onClick={handleMenuToggle}
                   style={{
                     background: "none",
                     border: "none",
@@ -634,53 +647,6 @@ const TextBlock = ({
                 >
                   ⋮
                 </button>
-                {showMenu && (
-                  <div
-                    className="block-menu"
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      background: "white",
-                      borderRadius: "8px",
-                      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-                      zIndex: 100,
-                      minWidth: "150px",
-                    }}
-                  >
-                    <button
-                      onClick={() => {
-                        setShowRenameDialog(true);
-                        setShowMenu(false);
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✏️ Переименовать
-                    </button>
-                    <button
-                      onClick={exportToPDF}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      📄 Экспорт в PDF
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -730,6 +696,76 @@ const TextBlock = ({
           </div>
         )}
       </div>
+
+      {showMenu &&
+        ReactDOM.createPortal(
+          <div
+            className="block-menu-portal"
+            style={{
+              position: "fixed",
+              top: menuPosition.top + "px",
+              left: menuPosition.left + "px",
+              background: "white",
+              borderRadius: "12px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              zIndex: 1000000,
+              minWidth: "180px",
+              overflow: "hidden",
+              animation: "menuFadeIn 0.2s ease",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setShowRenameDialog(true);
+                setShowMenu(false);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                padding: "10px 16px",
+                textAlign: "left",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f5f5f5")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+            >
+              <span>✏️</span> Переименовать
+            </button>
+            <button
+              onClick={exportToPDF}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                padding: "10px 16px",
+                textAlign: "left",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f5f5f5")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+            >
+              <span>📄</span> Экспорт в PDF
+            </button>
+          </div>,
+          getModalRoot(),
+        )}
+
       <BlockRenameDialog
         isOpen={showRenameDialog}
         title="Изменить название блока"
@@ -761,6 +797,7 @@ const TaskBlock = ({
   const [isResizing, setIsResizing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const taskListRef = useRef(null);
   const dragStartX = useRef(0),
     dragStartY = useRef(0);
@@ -770,6 +807,7 @@ const TaskBlock = ({
     resizeStartHeight = useRef(0);
   const resizeStartMouseX = useRef(0),
     resizeStartMouseY = useRef(0);
+  const menuButtonRef = useRef(null);
 
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
@@ -829,26 +867,26 @@ const TaskBlock = ({
     const pendingTasks = tasks.filter((t) => !t.completed);
 
     let content = `
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>${block.title || "Список задач"}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 20px; }
-                    h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
-                    h2 { color: #7f8c8d; margin-top: 20px; }
-                    .task-list { list-style: none; padding: 0; }
-                    .task-item { padding: 8px 0; border-bottom: 1px solid #ecf0f1; }
-                    .completed { text-decoration: line-through; color: #95a5a6; }
-                    .pending { color: #2c3e50; }
-                    .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
-                    .stats { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ecf0f1; font-size: 12px; color: #7f8c8d; }
-                </style>
-            </head>
-            <body>
-                <h1>${block.title || "Список задач"}</h1>
-                <p><strong>Статистика:</strong> ✅ ${completedTasks.length} выполнено | 📝 ${pendingTasks.length} в процессе | 📋 ${tasks.length} всего</p>
-        `;
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${block.title || "Список задач"}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
+          h2 { color: #7f8c8d; margin-top: 20px; }
+          .task-list { list-style: none; padding: 0; }
+          .task-item { padding: 8px 0; border-bottom: 1px solid #ecf0f1; }
+          .completed { text-decoration: line-through; color: #95a5a6; }
+          .pending { color: #2c3e50; }
+          .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
+          .stats { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ecf0f1; font-size: 12px; color: #7f8c8d; }
+        </style>
+      </head>
+      <body>
+        <h1>${block.title || "Список задач"}</h1>
+        <p><strong>Статистика:</strong> ✅ ${completedTasks.length} выполнено | 📝 ${pendingTasks.length} в процессе | 📋 ${tasks.length} всего</p>
+    `;
 
     if (pendingTasks.length > 0) {
       content += `<h2>📋 Активные задачи</h2><ul class="task-list">`;
@@ -867,11 +905,11 @@ const TaskBlock = ({
     }
 
     content += `
-                <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
-                <div class="stats">📄 Экспортировано из приложения "Your choice"</div>
-            </body>
-            </html>
-        `;
+        <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
+        <div class="stats">📄 Экспортировано из приложения "Your choice"</div>
+      </body>
+      </html>
+    `;
 
     const printWindow = window.open("", "_blank");
     printWindow.document.write(content);
@@ -894,8 +932,9 @@ const TaskBlock = ({
     const handleClickOutside = (e) => {
       if (
         showMenu &&
-        !e.target.closest(".block-menu") &&
-        !e.target.closest(".menu-trigger")
+        !e.target.closest(".block-menu-portal") &&
+        e.target !== menuButtonRef.current &&
+        !menuButtonRef.current?.contains(e.target)
       ) {
         setShowMenu(false);
       }
@@ -903,6 +942,18 @@ const TaskBlock = ({
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showMenu]);
+
+  const handleMenuToggle = (e) => {
+    e.stopPropagation();
+    if (menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+      });
+    }
+    setShowMenu(!showMenu);
+  };
 
   const handleDragStart = (e) => {
     if (isLocked) return;
@@ -1033,11 +1084,9 @@ const TaskBlock = ({
                 }}
               >
                 <button
+                  ref={menuButtonRef}
                   className="menu-trigger"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(!showMenu);
-                  }}
+                  onClick={handleMenuToggle}
                   style={{
                     background: "none",
                     border: "none",
@@ -1048,53 +1097,6 @@ const TaskBlock = ({
                 >
                   ⋮
                 </button>
-                {showMenu && (
-                  <div
-                    className="block-menu"
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      background: "white",
-                      borderRadius: "8px",
-                      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-                      zIndex: 100,
-                      minWidth: "150px",
-                    }}
-                  >
-                    <button
-                      onClick={() => {
-                        setShowRenameDialog(true);
-                        setShowMenu(false);
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✏️ Переименовать
-                    </button>
-                    <button
-                      onClick={exportToPDF}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      📄 Экспорт в PDF
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1152,6 +1154,76 @@ const TaskBlock = ({
           </div>
         )}
       </div>
+
+      {showMenu &&
+        ReactDOM.createPortal(
+          <div
+            className="block-menu-portal"
+            style={{
+              position: "fixed",
+              top: menuPosition.top + "px",
+              left: menuPosition.left + "px",
+              background: "white",
+              borderRadius: "12px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              zIndex: 1000000,
+              minWidth: "180px",
+              overflow: "hidden",
+              animation: "menuFadeIn 0.2s ease",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setShowRenameDialog(true);
+                setShowMenu(false);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                padding: "10px 16px",
+                textAlign: "left",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f5f5f5")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+            >
+              <span>✏️</span> Переименовать
+            </button>
+            <button
+              onClick={exportToPDF}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                padding: "10px 16px",
+                textAlign: "left",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f5f5f5")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+            >
+              <span>📄</span> Экспорт в PDF
+            </button>
+          </div>,
+          getModalRoot(),
+        )}
+
       <BlockRenameDialog
         isOpen={showRenameDialog}
         title="Изменить название блока"
