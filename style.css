@@ -594,8 +594,8 @@ body {
 /* Красный крестик - только символ, без круга при наведении */
 .card-delete {
   position: absolute;
-  top: -10px;
-  right: -10px;
+  top: 15px;
+  right: -26px;
   background: #e74c3c;
   border: none;
   color: white;
@@ -846,8 +846,8 @@ body {
 }
 
 .clock-widget .card-delete {
-  top: 8px;
-  right: 8px;
+  top: 15px;
+  right: -26px;
 }
 
 /* Электронные часы */
@@ -879,17 +879,17 @@ body {
   flex-direction: column;
   background-color: inherit;
   border-radius: 32px;
-  overflow: hidden;
+  overflow: visible; /* было hidden, меняем на visible */
 }
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
   background: rgba(135, 206, 235, 0.2);
   border-bottom: 1px solid rgba(135, 206, 235, 0.3);
   flex-shrink: 0;
+  padding: 8px 12px;
 }
 
 .calendar-nav-btn {
