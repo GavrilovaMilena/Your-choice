@@ -28,12 +28,36 @@ const loadData = () => {
   return { desktops: [], currentDesktopId: null };
 };
 
-// ========== ДИАЛОГИ ==========
+// Функция для получения корня портала
+const getModalRoot = () => {
+  let modalRoot = document.getElementById("modal-root");
+  if (!modalRoot) {
+    modalRoot = document.createElement("div");
+    modalRoot.id = "modal-root";
+    document.body.appendChild(modalRoot);
+  }
+  return modalRoot;
+};
+
+// ========== ДИАЛОГИ С ПОРТАЛОМ (всегда поверх карточек) ==========
+
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
   const [value, setValue] = useState(defaultValue || "");
   useEffect(() => setValue(defaultValue || ""), [defaultValue, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
-  return (
+
+  return ReactDOM.createPortal(
     <div className="custom-dialog-overlay" onClick={onCancel}>
       <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
@@ -60,13 +84,25 @@ const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 };
 
 const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
-  return (
+
+  return ReactDOM.createPortal(
     <div className="custom-dialog-overlay" onClick={onCancel}>
       <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
@@ -84,11 +120,11 @@ const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 };
 
-// ========== ДИАЛОГ ДЛЯ ИЗМЕНЕНИЯ НАЗВАНИЯ БЛОКА ==========
 const BlockRenameDialog = ({
   isOpen,
   title,
@@ -98,8 +134,20 @@ const BlockRenameDialog = ({
 }) => {
   const [value, setValue] = useState(defaultValue || "");
   useEffect(() => setValue(defaultValue || ""), [defaultValue, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
-  return (
+
+  return ReactDOM.createPortal(
     <div className="custom-dialog-overlay" onClick={onCancel}>
       <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
@@ -126,7 +174,8 @@ const BlockRenameDialog = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 };
 
@@ -174,7 +223,7 @@ const StartScreen = ({ onStart }) => {
   );
 };
 
-// ========== УВЕДОМЛЕНИЕ (исправленное - не закрывается автоматически) ==========
+// ========== УВЕДОМЛЕНИЕ ==========
 const TipsNotification = ({ onClose, onDontShowAgain }) => {
   const [dontShow, setDontShow] = useState(() => {
     return localStorage.getItem("skyPlanner_dontShowTips") === "true";
