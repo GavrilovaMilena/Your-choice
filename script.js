@@ -1788,23 +1788,65 @@ const Workspace = ({
   const [blocks, setBlocks] = useState(desktop.blocks || []);
   const [showTips, setShowTips] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDraggingMenu, setIsDraggingMenu] = useState(false);
-  const [menuButtonPosition, setMenuButtonPosition] = useState({
-    x: 30,
-    y: 30,
-  });
-  const menuDragStart = useRef({ x: 0, y: 0 });
-  const menuDragStartPos = useRef({ x: 0, y: 0 });
-  const [menuDirection, setMenuDirection] = useState("up"); // 'up' or 'down'
-  const [showMenuTooltip, setShowMenuTooltip] = useState(false);
-  const menuButtonRef = useRef(null);
   const [isGridEnabled, setIsGridEnabled] = useState(
     desktop.isGridEnabled || false,
   );
   const GRID_SIZE = 20;
 
+  // Переменные для перемещаемой кнопки
+  const [isDraggingMenu, setIsDraggingMenu] = useState(false);
+  const [menuButtonPosition, setMenuButtonPosition] = useState(
+    desktop.menuButtonPosition || { x: 30, y: 30 },
+  );
+  const [menuDirection, setMenuDirection] = useState("up");
+  const [showMenuTooltip, setShowMenuTooltip] = useState(false);
+  const menuButtonRef = useRef(null);
+  const menuDragStart = useRef({ x: 0, y: 0 });
+  const menuDragStartPos = useRef({ x: 0, y: 0 });
+
   const snapToGrid = (value) => {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  };
+
+  // Функции для перемещаемой кнопки
+  const updateMenuDirection = () => {
+    if (menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setMenuDirection(spaceBelow >= 250 ? "down" : "up");
+    }
+  };
+
+  const handleMenuDragStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMenu(true);
+    menuDragStart.current = {
+      x: e.clientX - menuButtonPosition.x,
+      y: e.clientY - menuButtonPosition.y,
+    };
+    menuDragStartPos.current = {
+      x: menuButtonPosition.x,
+      y: menuButtonPosition.y,
+    };
+  };
+
+  const handleMenuDragMove = (e) => {
+    if (!isDraggingMenu) return;
+    let newX = e.clientX - menuDragStart.current.x;
+    let newY = e.clientY - menuDragStart.current.y;
+    newX = Math.min(Math.max(newX, 20), window.innerWidth - 70);
+    newY = Math.min(Math.max(newY, 20), window.innerHeight - 70);
+    setMenuButtonPosition({ x: newX, y: newY });
+  };
+
+  const handleMenuDragEnd = () => {
+    if (isDraggingMenu) {
+      setIsDraggingMenu(false);
+      onUpdate({ ...desktop, menuButtonPosition });
+    }
+    setTimeout(() => updateMenuDirection(), 50);
   };
 
   useEffect(() => {
@@ -1960,29 +2002,6 @@ const Workspace = ({
     }
   };
 
-  const handleMenuDragStart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingMenu(true);
-    menuDragStart.current = {
-      x: e.clientX - menuButtonPosition.x,
-      y: e.clientY - menuButtonPosition.y,
-    };
-    menuDragStartPos.current = {
-      x: menuButtonPosition.x,
-      y: menuButtonPosition.y,
-    };
-  };
-
-  const handleMenuDragMove = (e) => {
-    if (!isDraggingMenu) return;
-    let newX = e.clientX - menuDragStart.current.x;
-    let newY = e.clientY - menuDragStart.current.y;
-    newX = Math.min(Math.max(newX, 20), window.innerWidth - 70);
-    newY = Math.min(Math.max(newY, 20), window.innerHeight - 70);
-    setMenuButtonPosition({ x: newX, y: newY });
-  };
-
   const handleMenuDragEnd = () => {
     if (isDraggingMenu) {
       setIsDraggingMenu(false);
@@ -1990,15 +2009,6 @@ const Workspace = ({
       onUpdate(updated);
     }
     updateMenuDirection();
-  };
-
-  const updateMenuDirection = () => {
-    if (menuButtonRef.current) {
-      const rect = menuButtonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      setMenuDirection(spaceBelow >= 250 ? "down" : "up");
-    }
   };
 
   useEffect(() => {
@@ -2461,6 +2471,32 @@ const App = () => {
     }
     setTimeout(() => updateMenuDirection(), 100);
   }, [desktop.blocks, desktop.isGridEnabled, desktop.menuButtonPosition]);
+
+  // Отслеживание перетаскивания кнопки
+  useEffect(() => {
+    if (isDraggingMenu) {
+      const moveHandler = (e) => handleMenuDragMove(e);
+      const upHandler = () => handleMenuDragEnd();
+      window.addEventListener("mousemove", moveHandler);
+      window.addEventListener("mouseup", upHandler);
+      return () => {
+        window.removeEventListener("mousemove", moveHandler);
+        window.removeEventListener("mouseup", upHandler);
+      };
+    }
+  }, [isDraggingMenu, menuButtonPosition]);
+
+  // Тултип для кнопки + при первом создании стола
+  useEffect(() => {
+    const tooltipShown = localStorage.getItem("floatingMenuTooltipShown");
+    if (!tooltipShown && blocks.length > 0) {
+      setShowMenuTooltip(true);
+      setTimeout(() => {
+        setShowMenuTooltip(false);
+        localStorage.setItem("floatingMenuTooltipShown", "true");
+      }, 5000);
+    }
+  }, [blocks.length]);
 
   if (showStart)
     return (
