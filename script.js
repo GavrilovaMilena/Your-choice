@@ -205,6 +205,9 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">
           📄 Экспортируй задачи в PDF через меню блока
         </div>
+        <div className="tip-item">
+          ⊞ Включай сетку для точного позиционирования блоков
+        </div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -315,7 +318,15 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
 };
 
 // ========== БЛОК ЗАДАЧ ==========
-const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+const TaskBlock = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
   const [x, setX] = useState(block.x || 50);
@@ -390,7 +401,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   };
 
   const exportToPDF = () => {
-    // Создаем содержимое для PDF
     const completedTasks = tasks.filter((t) => t.completed);
     const pendingTasks = tasks.filter((t) => !t.completed);
 
@@ -439,8 +449,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
             </html>
         `;
 
-    const blob = new Blob([content], { type: "application/pdf" });
-    // Используем html2pdf? Нет, просто создаем PDF через print
     const printWindow = window.open("", "_blank");
     printWindow.document.write(content);
     printWindow.document.close();
@@ -458,7 +466,6 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     }
   }, [tasks, height]);
 
-  // Закрытие меню при клике вне
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -494,7 +501,17 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
-        saveChanges(x, y, width, height, undefined, undefined);
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
+        saveChanges(newX, newY, width, height, undefined, undefined);
       }
     }
   };
@@ -723,7 +740,15 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 };
 
 // ========== ЧАСЫ ==========
-const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+const ClockWidget = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
   const [time, setTime] = useState(new Date());
   const [x, setX] = useState(block.x || 50);
   const [y, setY] = useState(block.y || 50);
@@ -768,6 +793,16 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
         savePosition();
       }
     }
@@ -850,7 +885,15 @@ const ClockWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
 };
 
 // ========== КАЛЕНДАРЬ (адаптивный) ==========
-const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
+const CalendarWidget = ({
+  block,
+  onUpdate,
+  onDelete,
+  colors,
+  isLocked,
+  isGridEnabled = false,
+  snapToGrid = (v) => v,
+}) => {
   const [currentDate, setCurrentDate] = useState(() =>
     block.currentDate ? new Date(block.currentDate) : new Date(),
   );
@@ -914,6 +957,16 @@ const CalendarWidget = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
+        let newX = x;
+        let newY = y;
+        if (isGridEnabled) {
+          newX = snapToGrid(x);
+          newY = snapToGrid(y);
+        }
+        if (newX !== x || newY !== y) {
+          setX(newX);
+          setY(newY);
+        }
         saveChanges();
       }
     }
@@ -1195,6 +1248,14 @@ const Workspace = ({
   const [blocks, setBlocks] = useState(desktop.blocks || []);
   const [showTips, setShowTips] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isGridEnabled, setIsGridEnabled] = useState(
+    desktop.isGridEnabled || false,
+  );
+  const GRID_SIZE = 40;
+
+  const snapToGrid = (value) => {
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  };
 
   useEffect(() => {
     const tipsShown = localStorage.getItem("skyPlanner_tipsShownInWorkspace");
@@ -1205,16 +1266,23 @@ const Workspace = ({
     }
   }, []);
 
+  useEffect(() => {
+    onUpdate({ ...desktop, isGridEnabled });
+  }, [isGridEnabled]);
+
   const updateBlocks = (newBlocks) => {
-    console.log("🔄 updateBlocks called, newBlocks length:", newBlocks.length);
     setBlocks(newBlocks);
-    onUpdate({ ...desktop, blocks: newBlocks });
+    onUpdate({ ...desktop, blocks: newBlocks, isGridEnabled });
   };
 
   const addTaskBlock = () => {
-    // Находим центр экрана
-    const centerX = (window.innerWidth - 420) / 2;
-    const centerY = (window.innerHeight - 420) / 2;
+    let centerX = (window.innerWidth - 420) / 2;
+    let centerY = (window.innerHeight - 420) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
 
     const newBlock = {
       id: Date.now(),
@@ -1227,14 +1295,18 @@ const Workspace = ({
       width: 420,
       height: 420,
     };
-    console.log("➕ Adding new task block at center:", centerX, centerY);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addClockBlock = () => {
-    const centerX = (window.innerWidth - 180) / 2;
-    const centerY = (window.innerHeight - 140) / 2;
+    let centerX = (window.innerWidth - 180) / 2;
+    let centerY = (window.innerHeight - 140) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
 
     const newBlock = {
       id: Date.now(),
@@ -1246,14 +1318,18 @@ const Workspace = ({
       width: 180,
       height: 140,
     };
-    console.log("➕ Adding new clock block at center:", centerX, centerY);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addCalendarBlock = () => {
-    const centerX = (window.innerWidth - 380) / 2;
-    const centerY = (window.innerHeight - 360) / 2;
+    let centerX = (window.innerWidth - 380) / 2;
+    let centerY = (window.innerHeight - 360) / 2;
+
+    if (isGridEnabled) {
+      centerX = snapToGrid(centerX);
+      centerY = snapToGrid(centerY);
+    }
 
     const newBlock = {
       id: Date.now(),
@@ -1266,19 +1342,47 @@ const Workspace = ({
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
     };
-    console.log("➕ Adding new calendar block at center:", centerX, centerY);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const deleteBlock = (id) => {
-    console.log("❌ deleteBlock called, id:", id);
     updateBlocks(blocks.filter((b) => b.id !== id));
   };
 
   const updateBlock = (updated) => {
-    console.log("🔄 updateBlock called, id:", updated.id);
-    updateBlocks(blocks.map((b) => (b.id === updated.id ? updated : b)));
+    let newX = updated.x;
+    let newY = updated.y;
+
+    if (isGridEnabled) {
+      newX = snapToGrid(updated.x);
+      newY = snapToGrid(updated.y);
+    }
+
+    updateBlocks(
+      blocks.map((b) =>
+        b.id === updated.id ? { ...updated, x: newX, y: newY } : b,
+      ),
+    );
+  };
+
+  const toggleGrid = () => {
+    const newGridState = !isGridEnabled;
+    setIsGridEnabled(newGridState);
+
+    if (newGridState) {
+      const snappedBlocks = blocks.map((block) => ({
+        ...block,
+        x: snapToGrid(block.x),
+        y: snapToGrid(block.y),
+      }));
+      setBlocks(snappedBlocks);
+      onUpdate({
+        ...desktop,
+        blocks: snappedBlocks,
+        isGridEnabled: newGridState,
+      });
+    }
   };
 
   useEffect(() => {
@@ -1296,20 +1400,30 @@ const Workspace = ({
   }, [isMenuOpen]);
 
   useEffect(() => {
-    console.log("📀 Syncing blocks from desktop:", desktop.blocks?.length);
     setBlocks(desktop.blocks || []);
-  }, [desktop.blocks]);
+    setIsGridEnabled(desktop.isGridEnabled || false);
+  }, [desktop.blocks, desktop.isGridEnabled]);
 
   if (blocks.length === 0) {
     return (
       <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
+        {isGridEnabled && <div className="grid-overlay active"></div>}
         <div className="control-panel">
           <button className="back-btn" onClick={onBack}>
             ← Назад к столам
           </button>
-          <button className="lock-btn" onClick={onToggleLock}>
-            {isLocked ? "🔒" : "🔓"}
-          </button>
+          <div className="control-buttons">
+            <button
+              className={`grid-btn ${isGridEnabled ? "active" : ""}`}
+              onClick={toggleGrid}
+              title="Включить/выключить сетку"
+            >
+              ⊞
+            </button>
+            <button className="lock-btn" onClick={onToggleLock}>
+              {isLocked ? "🔒" : "🔓"}
+            </button>
+          </div>
         </div>
         <div
           style={{
@@ -1385,14 +1499,27 @@ const Workspace = ({
   }
 
   return (
-    <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
+    <div
+      className="planner-app"
+      style={{ backgroundColor: colors.bgPage, position: "relative" }}
+    >
+      {isGridEnabled && <div className="grid-overlay active"></div>}
       <div className="control-panel">
         <button className="back-btn" onClick={onBack}>
           ← Назад к столам
         </button>
-        <button className="lock-btn" onClick={onToggleLock}>
-          {isLocked ? "🔒" : "🔓"}
-        </button>
+        <div className="control-buttons">
+          <button
+            className={`grid-btn ${isGridEnabled ? "active" : ""}`}
+            onClick={toggleGrid}
+            title="Включить/выключить сетку"
+          >
+            ⊞
+          </button>
+          <button className="lock-btn" onClick={onToggleLock}>
+            {isLocked ? "🔒" : "🔓"}
+          </button>
+        </div>
       </div>
       <div
         className="free-canvas"
@@ -1412,6 +1539,8 @@ const Workspace = ({
                 onDelete={deleteBlock}
                 colors={colors}
                 isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
               />
             );
           if (block.type === "calendar")
@@ -1423,6 +1552,8 @@ const Workspace = ({
                 onDelete={deleteBlock}
                 colors={colors}
                 isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
               />
             );
           return (
@@ -1433,6 +1564,8 @@ const Workspace = ({
               onDelete={deleteBlock}
               colors={colors}
               isLocked={isLocked}
+              isGridEnabled={isGridEnabled}
+              snapToGrid={snapToGrid}
             />
           );
         })}
