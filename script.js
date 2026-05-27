@@ -1796,7 +1796,7 @@ const Workspace = ({
   // Переменные для перемещаемой кнопки
   const [isDraggingMenu, setIsDraggingMenu] = useState(false);
   const [menuButtonPosition, setMenuButtonPosition] = useState(
-    desktop.menuButtonPosition || { x: 30, y: 30 },
+    desktop.menuButtonPosition || { x: 30, y: window.innerHeight - 90 },
   );
   const [menuDirection, setMenuDirection] = useState("up");
   const [showMenuTooltip, setShowMenuTooltip] = useState(false);
