@@ -2424,20 +2424,6 @@ const App = () => {
     if (!showStart && desktops.length) saveData(desktops, currentId);
   }, [desktops, currentId, showStart]);
 
-  // Отслеживание перетаскивания кнопки
-  useEffect(() => {
-    if (isDraggingMenu) {
-      const moveHandler = (e) => handleMenuDragMove(e);
-      const upHandler = () => handleMenuDragEnd();
-      window.addEventListener("mousemove", moveHandler);
-      window.addEventListener("mouseup", upHandler);
-      return () => {
-        window.removeEventListener("mousemove", moveHandler);
-        window.removeEventListener("mouseup", upHandler);
-      };
-    }
-  }, [isDraggingMenu, menuButtonPosition]);
-
   if (showStart)
     return (
       <StartScreen
