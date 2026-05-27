@@ -2016,19 +2016,6 @@ const Workspace = ({
     return () => document.removeEventListener("click", handler);
   }, [isMenuOpen]);
 
-  useEffect(() => {
-    if (isDraggingMenu) {
-      const moveHandler = (e) => handleMenuDragMove(e);
-      const upHandler = () => handleMenuDragEnd();
-      window.addEventListener("mousemove", moveHandler);
-      window.addEventListener("mouseup", upHandler);
-      return () => {
-        window.removeEventListener("mousemove", moveHandler);
-        window.removeEventListener("mouseup", upHandler);
-      };
-    }
-  }, [isDraggingMenu, menuButtonPosition]);
-
   if (blocks.length === 0) {
     return (
       <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
@@ -2437,15 +2424,6 @@ const App = () => {
     if (!showStart && desktops.length) saveData(desktops, currentId);
   }, [desktops, currentId, showStart]);
 
-  useEffect(() => {
-    setBlocks(desktop.blocks || []);
-    setIsGridEnabled(desktop.isGridEnabled || false);
-    if (desktop.menuButtonPosition) {
-      setMenuButtonPosition(desktop.menuButtonPosition);
-    }
-    setTimeout(() => updateMenuDirection(), 100);
-  }, [desktop.blocks, desktop.isGridEnabled, desktop.menuButtonPosition]);
-
   // Отслеживание перетаскивания кнопки
   useEffect(() => {
     if (isDraggingMenu) {
@@ -2459,18 +2437,6 @@ const App = () => {
       };
     }
   }, [isDraggingMenu, menuButtonPosition]);
-
-  // Тултип для кнопки + при первом создании стола
-  useEffect(() => {
-    const tooltipShown = localStorage.getItem("floatingMenuTooltipShown");
-    if (!tooltipShown && blocks.length > 0) {
-      setShowMenuTooltip(true);
-      setTimeout(() => {
-        setShowMenuTooltip(false);
-        localStorage.setItem("floatingMenuTooltipShown", "true");
-      }, 5000);
-    }
-  }, [blocks.length]);
 
   if (showStart)
     return (
