@@ -212,6 +212,10 @@ body {
   z-index: 2;
 }
 
+body.dialog-open .free-card-container {
+  z-index: 1 !important;
+}
+
 /* Экран рабочих столов - полностью белый фон */
 .desktops-screen {
   min-height: 100vh;
@@ -365,7 +369,7 @@ body {
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
-  z-index: 3000;
+  z-index: 99999 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -378,6 +382,7 @@ body {
   max-width: 400px;
   overflow: hidden;
   animation: dialogSlideIn 0.3s ease;
+  z-index: 99999 !important;
 }
 
 @keyframes dialogSlideIn {
