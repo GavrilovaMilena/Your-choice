@@ -97,23 +97,65 @@ body {
   position: relative;
 }
 
-/* Стили для сетки */
-.grid-overlay {
-  position: fixed;
+/* Стили для сетки - ТОЛЬКО внутри free-canvas */
+.free-canvas {
+  position: relative;
+  min-height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+.free-canvas .grid-overlay {
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 5;
+  z-index: 1;
   background-image:
-    linear-gradient(to right, rgba(135, 206, 235, 0.3) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(135, 206, 235, 0.3) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(to right, rgba(135, 206, 235, 0.25) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(135, 206, 235, 0.25) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
-.grid-overlay.active {
-  pointer-events: none;
+/* Панель управления сверху - кнопки рядом */
+.control-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  max-width: 100%;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 10;
+}
+
+.back-btn {
+  background: #87ceeb;
+  border: none;
+  border-radius: 40px;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+}
+
+.back-btn:hover {
+  background: #6bb5d4;
+  transform: scale(1.02);
+}
+
+.control-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 /* Кнопка сетки рядом с замком */
@@ -141,6 +183,33 @@ body {
 .grid-btn.active {
   background: rgba(135, 206, 235, 0.3);
   color: #87ceeb;
+}
+
+.lock-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  transition: all 0.2s;
+  color: #5a6e7c;
+}
+
+.lock-btn:hover {
+  background: rgba(135, 206, 235, 0.2);
+  transform: scale(1.05);
+  color: #2c3e50;
+}
+
+/* Карточки должны быть выше сетки */
+.free-card-container {
+  position: absolute;
+  z-index: 2;
 }
 
 /* Экран рабочих столов - полностью белый фон */

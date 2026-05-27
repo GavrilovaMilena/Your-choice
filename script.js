@@ -1251,7 +1251,7 @@ const Workspace = ({
   const [isGridEnabled, setIsGridEnabled] = useState(
     desktop.isGridEnabled || false,
   );
-  const GRID_SIZE = 40;
+  const GRID_SIZE = 20;
 
   const snapToGrid = (value) => {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -1407,7 +1407,6 @@ const Workspace = ({
   if (blocks.length === 0) {
     return (
       <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
-        {isGridEnabled && <div className="grid-overlay active"></div>}
         <div className="control-panel">
           <button className="back-btn" onClick={onBack}>
             ← Назад к столам
@@ -1426,39 +1425,53 @@ const Workspace = ({
           </div>
         </div>
         <div
+          className="free-canvas"
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "calc(100vh - 120px)",
-            textAlign: "center",
-            padding: "2rem",
+            position: "relative",
+            minHeight: "calc(100vh - 80px)",
+            overflow: "hidden",
           }}
         >
-          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
-          <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
-            Пока тут пусто🥺
-          </h3>
-          <p
-            style={{ color: colors.text, opacity: 0.7, marginBottom: "1.5rem" }}
-          >
-            Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
-          </p>
-          <button
-            onClick={addTaskBlock}
+          {isGridEnabled && <div className="grid-overlay"></div>}
+          <div
             style={{
-              backgroundColor: colors.accent,
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: "40px",
-              fontSize: "1rem",
-              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              textAlign: "center",
+              padding: "2rem",
             }}
           >
-            <span>➕</span> Добавить первый блок
-          </button>
+            <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
+            <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
+              Пока тут пусто🥺
+            </h3>
+            <p
+              style={{
+                color: colors.text,
+                opacity: 0.7,
+                marginBottom: "1.5rem",
+              }}
+            >
+              Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
+            </p>
+            <button
+              onClick={addTaskBlock}
+              style={{
+                backgroundColor: colors.accent,
+                color: "white",
+                border: "none",
+                padding: "12px 24px",
+                borderRadius: "40px",
+                fontSize: "1rem",
+                cursor: "pointer",
+              }}
+            >
+              <span>➕</span> Добавить первый блок
+            </button>
+          </div>
         </div>
         <button
           className="floating-menu-btn"
@@ -1499,11 +1512,7 @@ const Workspace = ({
   }
 
   return (
-    <div
-      className="planner-app"
-      style={{ backgroundColor: colors.bgPage, position: "relative" }}
-    >
-      {isGridEnabled && <div className="grid-overlay active"></div>}
+    <div className="planner-app" style={{ backgroundColor: colors.bgPage }}>
       <div className="control-panel">
         <button className="back-btn" onClick={onBack}>
           ← Назад к столам
@@ -1529,6 +1538,7 @@ const Workspace = ({
           overflow: "hidden",
         }}
       >
+        {isGridEnabled && <div className="grid-overlay"></div>}
         {blocks.map((block) => {
           if (block.type === "clock")
             return (
