@@ -39,7 +39,7 @@ const getModalRoot = () => {
   return modalRoot;
 };
 
-// ========== ДИАЛОГИ С ПОРТАЛОМ (всегда поверх карточек) ==========
+// ========== ДИАЛОГИ С ПОРТАЛОМ ==========
 
 const RenameDialog = ({ isOpen, title, defaultValue, onConfirm, onCancel }) => {
   const [value, setValue] = useState(defaultValue || "");
@@ -403,6 +403,19 @@ const TextBlock = ({
   const resizeStartMouseX = useRef(0),
     resizeStartMouseY = useRef(0);
   const menuButtonRef = useRef(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const getTitleMaxWidth = () => {
+    if (windowWidth < 500) return "80px";
+    if (windowWidth < 700) return "120px";
+    return "200px";
+  };
 
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
@@ -619,9 +632,16 @@ const TextBlock = ({
           <div className="card-title">
             <span>{block.icon || "📝"}</span>
             <span
-              style={{ color: colors.accent, cursor: "pointer" }}
+              style={{
+                color: colors.accent,
+                cursor: "pointer",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: getTitleMaxWidth(),
+              }}
               onDoubleClick={() => !isLocked && setShowRenameDialog(true)}
-              title="Дважды кликни для изменения названия"
+              title={block.title}
             >
               {block.title}
             </span>
@@ -630,7 +650,8 @@ const TextBlock = ({
                 style={{
                   position: "relative",
                   display: "inline-block",
-                  marginLeft: "8px",
+                  marginLeft: "4px",
+                  flexShrink: 0,
                 }}
               >
                 <button
@@ -641,8 +662,9 @@ const TextBlock = ({
                     background: "none",
                     border: "none",
                     cursor: "pointer",
-                    fontSize: "1.5rem",
+                    fontSize: "1.2rem",
                     opacity: 0.6,
+                    padding: "0 4px",
                   }}
                 >
                   ⋮
@@ -808,6 +830,19 @@ const TaskBlock = ({
   const resizeStartMouseX = useRef(0),
     resizeStartMouseY = useRef(0);
   const menuButtonRef = useRef(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const getTitleMaxWidth = () => {
+    if (windowWidth < 500) return "80px";
+    if (windowWidth < 700) return "120px";
+    return "200px";
+  };
 
   useEffect(() => {
     setX(block.x !== undefined ? block.x : 50);
@@ -1069,9 +1104,16 @@ const TaskBlock = ({
           <div className="card-title">
             <span>{block.icon || "📋"}</span>
             <span
-              style={{ color: colors.accent, cursor: "pointer" }}
+              style={{
+                color: colors.accent,
+                cursor: "pointer",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: getTitleMaxWidth(),
+              }}
               onDoubleClick={() => !isLocked && setShowRenameDialog(true)}
-              title="Дважды кликни для изменения названия"
+              title={block.title}
             >
               {block.title}
             </span>
@@ -1080,7 +1122,8 @@ const TaskBlock = ({
                 style={{
                   position: "relative",
                   display: "inline-block",
-                  marginLeft: "8px",
+                  marginLeft: "4px",
+                  flexShrink: 0,
                 }}
               >
                 <button
@@ -1091,8 +1134,9 @@ const TaskBlock = ({
                     background: "none",
                     border: "none",
                     cursor: "pointer",
-                    fontSize: "1.5rem",
+                    fontSize: "1.2rem",
                     opacity: 0.6,
+                    padding: "0 4px",
                   }}
                 >
                   ⋮

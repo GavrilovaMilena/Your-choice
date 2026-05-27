@@ -97,125 +97,6 @@ body {
   position: relative;
 }
 
-/* Стили для сетки - ТОЛЬКО внутри free-canvas */
-.free-canvas {
-  position: relative;
-  min-height: calc(100vh - 80px);
-  overflow: hidden;
-}
-
-.free-canvas .grid-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-  background-image:
-    linear-gradient(to right, rgba(135, 206, 235, 0.25) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(135, 206, 235, 0.25) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-/* Панель управления сверху - кнопки рядом */
-.control-panel {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  max-width: 100%;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 0 1rem;
-  position: relative;
-  z-index: 10;
-}
-
-.back-btn {
-  background: #87ceeb;
-  border: none;
-  border-radius: 40px;
-  padding: 6px 16px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: white;
-}
-
-.back-btn:hover {
-  background: #6bb5d4;
-  transform: scale(1.02);
-}
-
-.control-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* Кнопка сетки рядом с замком */
-.grid-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  transition: all 0.2s;
-  color: #5a6e7c;
-}
-
-.grid-btn:hover {
-  background: rgba(135, 206, 235, 0.2);
-  transform: scale(1.05);
-  color: #2c3e50;
-}
-
-.grid-btn.active {
-  background: rgba(135, 206, 235, 0.3);
-  color: #87ceeb;
-}
-
-.lock-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  transition: all 0.2s;
-  color: #5a6e7c;
-}
-
-.lock-btn:hover {
-  background: rgba(135, 206, 235, 0.2);
-  transform: scale(1.05);
-  color: #2c3e50;
-}
-
-/* Карточки должны быть выше сетки */
-.free-card-container {
-  position: absolute;
-  z-index: 2;
-}
-
-body.dialog-open .free-card-container {
-  z-index: 1 !important;
-}
-
 /* Экран рабочих столов - полностью белый фон */
 .desktops-screen {
   min-height: 100vh;
@@ -362,17 +243,17 @@ body.dialog-open .free-card-container {
 
 /* Кастомный модальный диалог */
 .custom-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 99999 !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .custom-dialog {
@@ -382,7 +263,8 @@ body.dialog-open .free-card-container {
   max-width: 400px;
   overflow: hidden;
   animation: dialogSlideIn 0.3s ease;
-  z-index: 99999 !important;
+  position: relative !important;
+  z-index: 1000000 !important;
 }
 
 @keyframes dialogSlideIn {
@@ -560,6 +442,32 @@ body.dialog-open .free-card-container {
   transform: scale(1.02);
 }
 
+.grid-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  color: #5a6e7c;
+}
+
+.grid-btn:hover {
+  background: rgba(135, 206, 235, 0.2);
+  transform: scale(1.05);
+  color: #2c3e50;
+}
+
+.grid-btn.active {
+  background: rgba(135, 206, 235, 0.3);
+  color: #87ceeb;
+}
+
 .lock-btn {
   width: 36px;
   height: 36px;
@@ -735,6 +643,15 @@ body.dialog-open .free-card-container {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0;
+}
+
+/* Ограничение длины названия карточки */
+.card-title span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
 }
 
 /* Стилизованные чекбоксы */
@@ -947,12 +864,12 @@ body.dialog-open .free-card-container {
 }
 
 .digital-date {
-  font-size: 1rem;
+  font-size: 0.7rem;
   opacity: 0.8;
   margin-top: 6px;
 }
 
-/* Стили для виджета календаря - адаптивный */
+/* Стили для виджета календаря - уменьшенные отступы */
 .calendar-widget {
   width: 100%;
   height: 100%;
@@ -967,6 +884,7 @@ body.dialog-open .free-card-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 8px 12px;
   background: rgba(135, 206, 235, 0.2);
   border-bottom: 1px solid rgba(135, 206, 235, 0.3);
   flex-shrink: 0;
@@ -1028,6 +946,21 @@ body.dialog-open .free-card-container {
 .calendar-day.today {
   border: 2px solid #87ceeb;
   font-weight: bold;
+}
+
+/* Сетка */
+.grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(135, 206, 235, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(135, 206, 235, 0.2) 1px, transparent 1px);
+  background-size: 20px 20px;
+  z-index: 100;
 }
 
 /* Модальное окно кастомизации */
@@ -1233,6 +1166,31 @@ body.dialog-open .free-card-container {
   cursor: pointer;
 }
 
+/* Анимация для меню */
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.block-menu-portal {
+  animation: menuFadeIn 0.2s ease;
+}
+
+/* Блокируем взаимодействие с карточками, когда открыт диалог */
+body:has(.custom-dialog-overlay) .free-card-container {
+  pointer-events: none;
+}
+
+body:has(.custom-dialog-overlay) .floating-menu-btn {
+  pointer-events: none;
+}
+
 /* Адаптивность */
 @media (max-width: 700px) {
   .desktops-grid {
@@ -1277,6 +1235,11 @@ body.dialog-open .free-card-container {
     padding-top: 0.8rem;
   }
 
+  /* Адаптивность для названия карточки */
+  .card-title span:last-child {
+    max-width: 120px !important;
+  }
+
   /* Адаптивность для часов */
   .digital-time {
     font-size: 1rem;
@@ -1284,79 +1247,27 @@ body.dialog-open .free-card-container {
   .digital-date {
     font-size: 0.55rem;
   }
-}
 
-/* Добавьте в конец вашего файла style.css */
-
-/* Гарантируем, что диалоги всегда поверх всего */
-.custom-dialog-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  background: rgba(0, 0, 0, 0.5) !important;
-  backdrop-filter: blur(4px) !important;
-  z-index: 999999 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.custom-dialog {
-  position: relative !important;
-  z-index: 1000000 !important;
-}
-
-/* Блокируем взаимодействие с карточками, когда открыт диалог */
-body:has(.custom-dialog-overlay) .free-card-container {
-  pointer-events: none;
-}
-
-body:has(.custom-dialog-overlay) .floating-menu-btn {
-  pointer-events: none;
-}
-
-@keyframes menuFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
+  /* Адаптивность для календаря */
+  .calendar-day {
+    font-size: 0.65rem;
+    padding: 4px 1px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .calendar-nav-btn {
+    font-size: 0.8rem;
+    padding: 2px 6px;
+  }
+  .calendar-month-year {
+    font-size: 0.75rem;
+  }
+  .calendar-weekdays {
+    font-size: 0.6rem;
+    padding: 2px 0;
   }
 }
 
-.block-menu-portal {
-  animation: menuFadeIn 0.2s ease;
-}
-
-/* Гарантируем, что диалоги всегда поверх всего */
-.custom-dialog-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  background: rgba(0, 0, 0, 0.5) !important;
-  backdrop-filter: blur(4px) !important;
-  z-index: 999999 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.custom-dialog {
-  position: relative !important;
-  z-index: 1000000 !important;
-}
-
-/* Блокируем взаимодействие с карточками, когда открыт диалог */
-body:has(.custom-dialog-overlay) .free-card-container {
-  pointer-events: none;
-}
-
-body:has(.custom-dialog-overlay) .floating-menu-btn {
-  pointer-events: none;
+@media (max-width: 500px) {
+  .card-title span:last-child {
+    max-width: 80px !important;
+  }
 }
