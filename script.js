@@ -2179,45 +2179,59 @@ const Workspace = ({
         }}
       >
         {isGridEnabled && <div className="grid-overlay"></div>}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            textAlign: "center",
-            padding: "2rem",
-          }}
-        >
-          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</div>
-          <h3 style={{ color: colors.text, marginBottom: "0.5rem" }}>
-            Пока тут пусто🥺
-          </h3>
-          <p
-            style={{
-              color: colors.text,
-              opacity: 0.7,
-              marginBottom: "1.5rem",
-            }}
-          >
-            Нажмите на кнопку + в левом нижнем углу, чтобы добавить блок
-          </p>
-          <button
-            onClick={addTaskBlock}
-            style={{
-              backgroundColor: colors.accent,
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: "40px",
-              fontSize: "1rem",
-              cursor: "pointer",
-            }}
-          >
-            <span>➕</span> Добавить первый блок
-          </button>
-        </div>
+        {blocks.map((block) => {
+          if (block.type === "clock")
+            return (
+              <ClockWidget
+                key={block.id}
+                block={block}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                colors={colors}
+                isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
+              />
+            );
+          if (block.type === "calendar")
+            return (
+              <CalendarWidget
+                key={block.id}
+                block={block}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                colors={colors}
+                isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
+              />
+            );
+          if (block.type === "text")
+            return (
+              <TextBlock
+                key={block.id}
+                block={block}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                colors={colors}
+                isLocked={isLocked}
+                isGridEnabled={isGridEnabled}
+                snapToGrid={snapToGrid}
+              />
+            );
+          return (
+            <TaskBlock
+              key={block.id}
+              block={block}
+              onUpdate={updateBlock}
+              onDelete={deleteBlock}
+              colors={colors}
+              isLocked={isLocked}
+              isGridEnabled={isGridEnabled}
+              snapToGrid={snapToGrid}
+            />
+          );
+        })}
       </div>
 
       {/* Кнопка + после free-canvas */}
