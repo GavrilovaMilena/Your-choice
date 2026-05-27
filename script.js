@@ -88,6 +88,48 @@ const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
   );
 };
 
+// ========== ДИАЛОГ ДЛЯ ИЗМЕНЕНИЯ НАЗВАНИЯ БЛОКА ==========
+const BlockRenameDialog = ({
+  isOpen,
+  title,
+  defaultValue,
+  onConfirm,
+  onCancel,
+}) => {
+  const [value, setValue] = useState(defaultValue || "");
+  useEffect(() => setValue(defaultValue || ""), [defaultValue, isOpen]);
+  if (!isOpen) return null;
+  return (
+    <div className="custom-dialog-overlay" onClick={onCancel}>
+      <div className="custom-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-header">
+          <h3>{title}</h3>
+        </div>
+        <div className="dialog-body">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && onConfirm(value)}
+            autoFocus
+          />
+        </div>
+        <div className="dialog-footer">
+          <button className="dialog-btn dialog-btn-cancel" onClick={onCancel}>
+            Отмена
+          </button>
+          <button
+            className="dialog-btn dialog-btn-confirm"
+            onClick={() => onConfirm(value)}
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ========== СТАРТОВЫЙ ЭКРАН ==========
 const StartScreen = ({ onStart }) => {
   const [isAnimating, setIsAnimating] = useState(false);
@@ -157,6 +199,12 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">➕ Добавляй новые блоки через кнопку +</div>
         <div className="tip-item">🕐 Добавляй часы через меню</div>
         <div className="tip-item">📅 Добавляй календарь через меню</div>
+        <div className="tip-item">
+          ✏️ Дважды кликни по заголовку блока, чтобы изменить название
+        </div>
+        <div className="tip-item">
+          📄 Экспортируй задачи в PDF через меню блока
+        </div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -276,6 +324,8 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [height, setHeight] = useState(block.height || 420);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
   const taskListRef = useRef(null);
   const dragStartX = useRef(0),
     dragStartY = useRef(0);
@@ -294,10 +344,11 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     setTasks(block.tasks || []);
   }, [block.id, block.x, block.y, block.width, block.height]);
 
-  const saveChanges = (newX, newY, newWidth, newHeight, newTasks) => {
+  const saveChanges = (newX, newY, newWidth, newHeight, newTasks, newTitle) => {
     onUpdate({
       ...block,
       tasks: newTasks !== undefined ? newTasks : tasks,
+      title: newTitle !== undefined ? newTitle : block.title,
       x: newX,
       y: newY,
       width: newWidth,
@@ -312,7 +363,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       { id: Date.now(), text: newTask, completed: false },
     ];
     setTasks(newTasks);
-    saveChanges(x, y, width, height, newTasks);
+    saveChanges(x, y, width, height, newTasks, undefined);
     setNewTask("");
   };
 
@@ -321,13 +372,81 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
       t.id === id ? { ...t, completed: !t.completed } : t,
     );
     setTasks(newTasks);
-    saveChanges(x, y, width, height, newTasks);
+    saveChanges(x, y, width, height, newTasks, undefined);
   };
 
   const deleteTask = (id) => {
     const newTasks = tasks.filter((t) => t.id !== id);
     setTasks(newTasks);
-    saveChanges(x, y, width, height, newTasks);
+    saveChanges(x, y, width, height, newTasks, undefined);
+  };
+
+  const handleRename = (newTitle) => {
+    if (newTitle && newTitle.trim()) {
+      saveChanges(x, y, width, height, undefined, newTitle.trim());
+    }
+    setShowRenameDialog(false);
+    setShowMenu(false);
+  };
+
+  const exportToPDF = () => {
+    // Создаем содержимое для PDF
+    const completedTasks = tasks.filter((t) => t.completed);
+    const pendingTasks = tasks.filter((t) => !t.completed);
+
+    let content = `
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${block.title || "Список задач"}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #2c3e50; border-bottom: 2px solid #87CEEB; padding-bottom: 10px; }
+                    h2 { color: #7f8c8d; margin-top: 20px; }
+                    .task-list { list-style: none; padding: 0; }
+                    .task-item { padding: 8px 0; border-bottom: 1px solid #ecf0f1; }
+                    .completed { text-decoration: line-through; color: #95a5a6; }
+                    .pending { color: #2c3e50; }
+                    .date { color: #7f8c8d; font-size: 12px; margin-top: 20px; text-align: center; }
+                    .stats { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ecf0f1; font-size: 12px; color: #7f8c8d; }
+                </style>
+            </head>
+            <body>
+                <h1>${block.title || "Список задач"}</h1>
+                <p><strong>Статистика:</strong> ✅ ${completedTasks.length} выполнено | 📝 ${pendingTasks.length} в процессе | 📋 ${tasks.length} всего</p>
+        `;
+
+    if (pendingTasks.length > 0) {
+      content += `<h2>📋 Активные задачи</h2><ul class="task-list">`;
+      pendingTasks.forEach((task) => {
+        content += `<li class="task-item pending">☐ ${task.text}</li>`;
+      });
+      content += `</ul>`;
+    }
+
+    if (completedTasks.length > 0) {
+      content += `<h2>✅ Выполненные задачи</h2><ul class="task-list">`;
+      completedTasks.forEach((task) => {
+        content += `<li class="task-item completed">✓ ${task.text}</li>`;
+      });
+      content += `</ul>`;
+    }
+
+    content += `
+                <div class="date">Создано: ${new Date().toLocaleString("ru-RU")}</div>
+                <div class="stats">📄 Экспортировано из приложения "Your choice"</div>
+            </body>
+            </html>
+        `;
+
+    const blob = new Blob([content], { type: "application/pdf" });
+    // Используем html2pdf? Нет, просто создаем PDF через print
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.print();
+
+    setShowMenu(false);
   };
 
   useEffect(() => {
@@ -338,6 +457,21 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           : "hidden";
     }
   }, [tasks, height]);
+
+  // Закрытие меню при клике вне
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        showMenu &&
+        !e.target.closest(".block-menu") &&
+        !e.target.closest(".menu-trigger")
+      ) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showMenu]);
 
   const handleDragStart = (e) => {
     if (isLocked) return;
@@ -360,7 +494,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
     if (isDragging) {
       setIsDragging(false);
       if (dragStartPosX.current !== x || dragStartPosY.current !== y) {
-        saveChanges(x, y, width, height, undefined);
+        saveChanges(x, y, width, height, undefined, undefined);
       }
     }
   };
@@ -387,7 +521,7 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const handleResizeEnd = () => {
     if (isResizing) {
       setIsResizing(false);
-      saveChanges(x, y, width, height, undefined);
+      saveChanges(x, y, width, height, undefined, undefined);
     }
   };
 
@@ -442,7 +576,86 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
         >
           <div className="card-title">
             <span>{block.icon || "📋"}</span>
-            <span style={{ color: colors.accent }}>{block.title}</span>
+            <span
+              style={{ color: colors.accent, cursor: "pointer" }}
+              onDoubleClick={() => !isLocked && setShowRenameDialog(true)}
+              title="Дважды кликни для изменения названия"
+            >
+              {block.title}
+            </span>
+            {!isLocked && (
+              <div
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  marginLeft: "8px",
+                }}
+              >
+                <button
+                  className="menu-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(!showMenu);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  ⋮
+                </button>
+                {showMenu && (
+                  <div
+                    className="block-menu"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      background: "white",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                      zIndex: 100,
+                      minWidth: "150px",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setShowRenameDialog(true);
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✏️ Переименовать
+                    </button>
+                    <button
+                      onClick={exportToPDF}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      📄 Экспорт в PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <ul
@@ -464,33 +677,47 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
               >
                 {task.text}
               </span>
-              <button
-                className="delete-task"
-                onClick={() => deleteTask(task.id)}
-              >
-                🗑️
-              </button>
+              {!isLocked && (
+                <button
+                  className="delete-task"
+                  onClick={() => deleteTask(task.id)}
+                >
+                  🗑️
+                </button>
+              )}
             </li>
           ))}
         </ul>
-        <div className="add-task-form">
-          <input
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && addTask()}
-            placeholder="Новая задача..."
-            style={{ color: colors.text }}
-          />
-          <button onClick={addTask} style={{ backgroundColor: colors.accent }}>
-            + Добавить
-          </button>
-        </div>
+        {!isLocked && (
+          <div className="add-task-form">
+            <input
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && addTask()}
+              placeholder="Новая задача..."
+              style={{ color: colors.text }}
+            />
+            <button
+              onClick={addTask}
+              style={{ backgroundColor: colors.accent }}
+            >
+              + Добавить
+            </button>
+          </div>
+        )}
         {!isLocked && (
           <div className="resize-handle" onMouseDown={handleResizeStart}>
             <div></div>
           </div>
         )}
       </div>
+      <BlockRenameDialog
+        isOpen={showRenameDialog}
+        title="Изменить название блока"
+        defaultValue={block.title}
+        onConfirm={handleRename}
+        onCancel={() => setShowRenameDialog(false)}
+      />
     </div>
   );
 };
@@ -985,66 +1212,61 @@ const Workspace = ({
   };
 
   const addTaskBlock = () => {
-    console.log("📦 addTaskBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 420)),
-    );
+    // Находим центр экрана
+    const centerX = (window.innerWidth - 420) / 2;
+    const centerY = (window.innerHeight - 420) / 2;
+
     const newBlock = {
       id: Date.now(),
       type: "task",
       title: "Новый блок задач",
       icon: "📝",
       tasks: [],
-      x: maxX + 20,
-      y: 50,
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
       width: 420,
       height: 420,
     };
-    console.log("➕ Adding new task block:", newBlock.id);
+    console.log("➕ Adding new task block at center:", centerX, centerY);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addClockBlock = () => {
-    console.log("🕐 addClockBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 180)),
-    );
+    const centerX = (window.innerWidth - 180) / 2;
+    const centerY = (window.innerHeight - 140) / 2;
+
     const newBlock = {
       id: Date.now(),
       type: "clock",
       title: "Часы",
       clockType: "digital",
-      x: maxX + 20,
-      y: 50,
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
       width: 180,
       height: 140,
     };
-    console.log("➕ Adding new clock block:", newBlock.id);
+    console.log("➕ Adding new clock block at center:", centerX, centerY);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
 
   const addCalendarBlock = () => {
-    console.log("📅 addCalendarBlock called, current blocks:", blocks.length);
-    const maxX = Math.max(
-      50,
-      ...blocks.map((b) => (b.x || 50) + (b.width || 380)),
-    );
+    const centerX = (window.innerWidth - 380) / 2;
+    const centerY = (window.innerHeight - 360) / 2;
+
     const newBlock = {
       id: Date.now(),
       type: "calendar",
       title: "Календарь",
-      x: maxX + 20,
-      y: 50,
+      x: Math.max(20, centerX),
+      y: Math.max(20, centerY),
       width: 380,
       height: 360,
       currentDate: new Date().toISOString(),
       selectedDate: new Date().toISOString(),
     };
-    console.log("➕ Adding new calendar block:", newBlock.id);
+    console.log("➕ Adding new calendar block at center:", centerX, centerY);
     updateBlocks([...blocks, newBlock]);
     setIsMenuOpen(false);
   };
