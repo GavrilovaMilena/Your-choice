@@ -158,6 +158,7 @@ const TipsNotification = ({ onClose, onDontShowAgain }) => {
         <div className="tip-item">🕐 Добавляй часы через меню</div>
         <div className="tip-item">📅 Добавляй календарь через меню</div>
         <div className="tip-item">🌤️ Добавляй погоду через меню</div>
+        <div className="tip-item">✏️ Изменяй название блока кнопкой ✏️</div>
         <div className="tip-item">❌ Удаляй блоки красным крестиком в углу</div>
         <div className="tip-item">✅ Отмечай выполненные задачи</div>
         <div className="tip-item">
@@ -267,7 +268,7 @@ const CustomizeModal = ({ isOpen, onClose, colors, onSave }) => {
   );
 };
 
-// ========== БЛОК ЗАДАЧ (с исправленной блокировкой и SVG иконками) ==========
+// ========== БЛОК ЗАДАЧ (исправленный - задачи доступны при заблокированном экране) ==========
 const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
   const [tasks, setTasks] = useState(block.tasks || []);
   const [newTask, setNewTask] = useState("");
@@ -444,6 +445,34 @@ const TaskBlock = ({ block, onUpdate, onDelete, colors, isLocked }) => {
           <div className="card-title">
             <span>{block.icon || "📋"}</span>
             <span style={{ color: colors.accent }}>{block.title}</span>
+            {!isLocked && (
+              <button
+                className="edit-title-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newTitle = prompt(
+                    "Введите новое название блока:",
+                    block.title,
+                  );
+                  if (newTitle && newTitle.trim()) {
+                    onUpdate({ ...block, title: newTitle.trim() });
+                  }
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                  marginLeft: "8px",
+                  opacity: 0.6,
+                  transition: "opacity 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.6)}
+              >
+                ✏️
+              </button>
+            )}
           </div>
         </div>
         <ul
